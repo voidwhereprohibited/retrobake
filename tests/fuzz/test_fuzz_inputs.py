@@ -133,7 +133,17 @@ def test_sanitize_only_rejects_cleanly_and_output_is_safe(field):
         out.encode("utf-8")  # no lone surrogates survive
         if rule.ascii_only:
             assert out.isascii()
-        assert sanitize(field, out) == out, "sanitize must be idempotent"
+
+
+@pytest.mark.xfail(strict=True, reason="board task #28 (security): stacked combining marks")
+@pytest.mark.parametrize("field", sorted(FIELDS))
+def test_sanitize_is_idempotent(field):
+    for text in corpus(seed=sum(map(ord, field))):
+        try:
+            out = sanitize(field, text)
+        except InputRejected:
+            continue
+        assert sanitize(field, out) == out, (field, out[:80])
 
 
 def test_sanitize_wrong_types_are_plain_rejections():
@@ -182,9 +192,25 @@ def test_ai_prompts_are_guarded_against_everything():
             low = prompt.text.lower()
             assert not find_ip(prompt.text), prompt.text
             assert "http" not in low and "www." not in low
-            assert "ignore all previous" not in low and "system:" not in low
             assert not bad_chars(prompt.text, multiline=False)
             assert len(prompt.text) < 2000
+
+
+INJECTION_MARKERS = ("ignore all previous", "system:", "disregard the rules", "override the system")
+
+
+@pytest.mark.xfail(strict=True, reason="board task #27 (security): glued-letter injection bypass")
+def test_prompt_injection_phrases_never_reach_prompts():
+    rng = random.Random(20)
+    for phrase in INJECT[:4]:
+        for glue in ("", "a", "\u00f3", "\u0645", "1", "_"):
+            spec = _spec(rng, f"a frog {glue}{phrase} ok", f"{glue}{phrase}")
+            for build in (cover_prompt, names_prompt):
+                try:
+                    low = build(spec).text.lower()
+                except InputRejected:
+                    continue
+                assert not any(m in low for m in INJECTION_MARKERS), (glue, phrase, low)
 
 
 CONFUSABLES = str.maketrans(
@@ -194,7 +220,6 @@ CONFUSABLES = str.maketrans(
 )
 
 
-@pytest.mark.xfail(strict=True, reason="qa bug task for security: homoglyph franchise names")
 def test_homoglyph_franchise_names_do_not_reach_prompts():
     # Cyrillic look-alikes inside a franchise name, e.g. "Z\u0435lda".
     stories = ("like Z\u0435lda meets M\u0430rio", "a P\u043ekemon style game", "S\u043enic speed")
@@ -280,9 +305,16 @@ def test_safe_join_never_escapes_or_crashes(tmp_path: Path):
     base.mkdir()
     resolved = base.resolve()
     for text in corpus(seed=19, n=N // 3):
+        text = text.replace("\x00", "")  # NUL is tracked in test_safe_join_rejects_nul_cleanly
         for parts in ((text,), ("sub", text), (text, "x.nes")):
             try:
                 target = timed(safe_join, base, *parts)
             except SandboxError:
                 continue
             assert target == resolved or resolved in target.parents
+
+
+@pytest.mark.xfail(strict=True, reason="board task #29 (security): NUL byte gives raw ValueError")
+def test_safe_join_rejects_nul_cleanly(tmp_path: Path):
+    with pytest.raises(SandboxError):
+        safe_join(tmp_path, "a\x00b")
