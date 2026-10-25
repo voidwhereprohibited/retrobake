@@ -32,8 +32,11 @@ Limits mirror `src/retrobake/spec/game_spec.schema.json`; change both together.
 2. Each slot: `quote_user_text(text)` → cleaned, IP-scrubbed, instruction/URL/markup removed, quoted.
 3. Whole prompt: `check_prompt(prompt)` right before the request.
 4. Every request includes `POLLINATIONS_REQUIRED_PARAMS` (`safe=true`, `private=true`, `enhance=false`).
+   On the keyed `gen.pollinations.ai` host `safe=true` only means privacy+secrets, so `safe` there
+   must be `POLLINATIONS_GEN_SAFE` (`true,sexual,violence`). The anonymous image host embeds the
+   prompt in EXIF, so AI images are always re-encoded before saving (ai-art does this).
 5. Results: `validate_name(text)` and `validate_image(bytes)` (PNG/JPEG/WebP, ≤ 8 MB,
-   64–2048 px), then decode with QImage. Any `OutputRejected` → offline fallback.
+   64–2048 px), then decode with QImage, passing the format `validate_image` returned. Any `OutputRejected` → offline fallback.
    Never use a file name or URL from the AI response.
 
 ## 4. Build sandbox (nes-engine, snes-engine)
@@ -50,8 +53,10 @@ with BuildWorkspace([TEMPLATES_DIR]) as ws:
   (strings as `.byte` values from the cleaned ASCII title, never inline source).
 - Clean env (PATH = toolchain dirs, HOME/TMP = workspace, proxies → dead address).
 - Limits (`BuildLimits`): 120 s, 1 GB memory, 16 MB per file, 128 MB workspace, 256 KB log.
-  Linux: `prlimit`; Windows: kill-on-close Job Object (memory + process count). Whole tree
-  killed on timeout. Workspace deleted afterwards.
+  Linux: `prlimit`; Windows: kill-on-close Job Object (memory + process count). The tool is
+  started suspended and only resumed once it is inside the job, so nothing it starts escapes.
+  Whole tree killed on timeout and after every run. Workspace deleted afterwards (retried on
+  Windows while killed tools release their files; a cleanup failure never hides the real error).
 - Network: Linux uses an empty network namespace when the OS allows it (Ubuntu 24.04+
   blocks unprivileged ones via AppArmor, so it may be off); the bundled toolchains have no
   network code, which is the guarantee. `BuildResult.network_isolated` reports which.
