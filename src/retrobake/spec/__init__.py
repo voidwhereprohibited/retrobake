@@ -7,6 +7,8 @@ Public API (contract "game-spec", see docs/game-spec.md):
     resolve(spec) -> (spec, fixes)
     validate(spec) -> [error]          # empty list = ready to bake
     style_from_text(text) -> StyleHints
+    scrub_text(text) -> str             # franchise-free description/hero text
+    platformer.generate_levels(spec) -> levels.LevelPack  # contract level-data
     catalog(), schema(), available_genres(), SPEC_VERSION
 """
 
@@ -25,6 +27,31 @@ from .style_refs import STYLE_TAGS, StyleHints, style_from_text
 _validator = None
 
 
+def _ip_problems(spec: dict[str, Any]) -> list[str]:
+    """Security's IP guard is the final gate: no franchise names in title or free text."""
+    from retrobake.security import InputRejected, check_title, find_ip
+
+    errors: list[str] = []
+    try:
+        check_title(spec["title"])
+    except InputRejected as exc:
+        errors.append(f"title: {exc.message}")
+    for field, text in (
+        ("description", spec.get("description", "")),
+        ("hero.description", spec["hero"].get("description", "")),
+    ):
+        if text and find_ip(text):
+            errors.append(f"{field}: contains a name from another game; use scrub_text() first")
+    return errors
+
+
+def scrub_text(text: str) -> str:
+    """Franchise-free free text for description fields (style_refs pass, then security guard)."""
+    from retrobake.security import scrub_ip
+
+    return scrub_ip(style_from_text(text).clean_text)[0]
+
+
 def validate(spec: Any) -> list[str]:
     """All reasons ``spec`` can't be baked. Empty list means it's valid and conflict-free."""
     global _validator
@@ -35,6 +62,7 @@ def validate(spec: Any) -> list[str]:
     except fastjsonschema.JsonSchemaValueException as exc:
         return [exc.message]
     errors = problems(spec)
+    errors += _ip_problems(spec)
     errors += [
         f"unknown style tag '{t}'" for t in spec["style"].get("tags", []) if t not in STYLE_TAGS
     ]
@@ -55,6 +83,7 @@ __all__ = [
     "questions_for",
     "resolve",
     "schema",
+    "scrub_text",
     "style_from_text",
     "validate",
 ]
