@@ -12,6 +12,7 @@ requires-python = ">=3.12"
 authors = [{ name = "Roger (voidwhereprohibited)" }]
 dependencies = [
     "PySide6>=6.8",
+    "fastjsonschema>=2.21.2",
 ]
 
 [project.optional-dependencies]
@@ -27,6 +28,10 @@ Issues = "https://github.com/voidwhereprohibited/retrobake/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"retrobake.spec" = ["*.json"]
+"retrobake.security" = ["*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
