@@ -87,3 +87,10 @@ def test_validate_image_bad():
     ):
         with pytest.raises(OutputRejected):
             validate_image(bad)
+
+
+def test_gen_safe_has_content_filters():
+    from retrobake.security import POLLINATIONS_GEN_SAFE
+
+    parts = set(POLLINATIONS_GEN_SAFE.split(","))
+    assert {"true", "sexual", "violence"} <= parts
