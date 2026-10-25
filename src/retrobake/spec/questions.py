@@ -206,5 +206,9 @@ def apply_answers(spec: dict[str, Any], answers: dict[str, Any]) -> tuple[dict[s
         if question["kind"] == "multi":
             allowed = {o["value"] for o in question["options"]}
             value = [v for v in value if v in allowed]
+        if question["kind"] == "text" and isinstance(value, str):
+            from retrobake.security import scrub_ip
+
+            value = scrub_ip(value)[0]
         spec.setdefault(section, {})[key] = value
     return resolve(spec)

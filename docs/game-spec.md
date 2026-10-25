@@ -14,7 +14,8 @@ Owner: **game-design**. Every other agent builds on this. Don't change it withou
 | `questions_for(spec)` | list of question dicts, in order | wizard-ui |
 | `apply_answers(spec, {question_id: value})` | `(spec, fixes)` | wizard-ui |
 | `resolve(spec)` | `(spec, fixes)` — conflict-free copy, input untouched | anyone |
-| `validate(spec)` | list of error strings; `[]` = ready to bake | engines (must call before building), qa |
+| `validate(spec)` | list of error strings; `[]` = ready to bake (includes security's `check_title` + IP check on free text) | engines (must call before building), qa |
+| `scrub_text(text)` | franchise-free text (style_refs then security `scrub_ip`) | wizard-ui |
 | `style_from_text(text)` | `StyleHints(genres, modules, tags, palette_mood, clean_text, matched)` | security, ai-art |
 | `catalog()`, `schema()`, `available_genres()` | data | wizard-ui (drop-down labels), ai-art |
 
@@ -97,6 +98,10 @@ Options already exclude things that don't fit (no "Jump on enemies" in top-down,
 ## Franchise references
 
 `style_from_text()` recognises names like "like Zelda meets Mario" (whole words, any case) and turns them into genres, module suggestions, generic style tags and a palette. `clean_text` has each name replaced with "a classic game". The franchise table lives only in `spec/style_refs.py` for recognition; nothing it outputs contains a franchise name. Security's IP guard is the final check before any text reaches AI or the ROM.
+
+## Levels
+
+Platformer level data comes from `retrobake.spec.platformer.generate_levels(spec)`; see `docs/level-data.md`.
 
 ## For engine agents
 
