@@ -19,3 +19,4 @@ coordination/*.db-journal
 coordination/*.db-wal
 coordination/*.db-shm
 coordination/logs/
+.claude/worktrees/
