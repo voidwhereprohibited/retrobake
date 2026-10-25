@@ -16,10 +16,24 @@ Usage:
   python3 coordination/board.py inbox AGENT
   python3 coordination/board.py contract AGENT "name" "path/or/spec" # publish an interface others build on
   python3 coordination/board.py contracts
+  python3 coordination/board.py export                       # write readable BOARD.md snapshot
 """
 import sqlite3, sys, os, datetime
 
-DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "retrobake.db")
+def _db_path():
+    """One shared DB for every agent, even ones running in separate git worktrees."""
+    if os.environ.get("RETROBAKE_BOARD"):
+        return os.environ["RETROBAKE_BOARD"]
+    here = os.path.dirname(os.path.abspath(__file__))
+    try:
+        import subprocess
+        common = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                                cwd=here, capture_output=True, text=True, check=True).stdout.strip()
+        return os.path.join(os.path.dirname(common), "coordination", "retrobake.db")
+    except Exception:
+        return os.path.join(here, "retrobake.db")
+
+DB = _db_path()
 STATES = ("todo", "doing", "blocked", "done")
 
 SCHEMA = """
@@ -40,8 +54,10 @@ def now():
     return datetime.datetime.now().isoformat(timespec="seconds")
 
 def db():
-    con = sqlite3.connect(DB)
+    os.makedirs(os.path.dirname(DB), exist_ok=True)
+    con = sqlite3.connect(DB, timeout=30)
     con.row_factory = sqlite3.Row
+    con.execute("PRAGMA journal_mode=WAL")
     con.executescript(SCHEMA)
     return con
 
@@ -66,6 +82,19 @@ def main(argv):
     con = db()
     if cmd == "init":
         print(f"Board ready at {DB}")
+    elif cmd == "export":
+        out = os.path.join(os.path.dirname(DB), "BOARD.md")
+        lines = ["# RetroBake agent board (snapshot)", "", "## Tasks", "| id | agent | state | title | note |", "|---|---|---|---|---|"]
+        for r in con.execute("SELECT * FROM tasks ORDER BY id"):
+            lines.append(f"| {r['id']} | {r['agent']} | {r['state']} | {r['title']} | {r['note']} |")
+        lines += ["", "## Decisions", "| topic | decision | by |", "|---|---|---|"]
+        for r in con.execute("SELECT * FROM decisions ORDER BY id"):
+            lines.append(f"| {r['topic']} | {r['decision']} | {r['agent']} |")
+        lines += ["", "## Contracts", "| name | owner | spec |", "|---|---|---|"]
+        for r in con.execute("SELECT * FROM contracts ORDER BY name"):
+            lines.append(f"| {r['name']} | {r['agent']} | {r['spec']} |")
+        open(out, "w").write("\n".join(lines) + "\n")
+        print(f"exported {out}")
     elif cmd == "status":
         print("== Tasks by state ==")
         for s in STATES:

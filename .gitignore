@@ -13,7 +13,9 @@ out/
 *.sfc
 !tests/fixtures/*.nes
 !tests/fixtures/*.sfc
-# sqlite temp files (the board db itself IS committed so every agent shares it)
+# the live board db stays local and shared by all worktrees; BOARD.md is the committed snapshot
+coordination/*.db
 coordination/*.db-journal
 coordination/*.db-wal
 coordination/*.db-shm
+coordination/logs/
