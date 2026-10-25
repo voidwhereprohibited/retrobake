@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import random
+import struct
 import time
 
 import pytest
@@ -77,10 +78,8 @@ def test_random_specs_always_give_good_packs():
         assert generate_levels(spec).encode() == blob, "must be deterministic"
         assert lv.decode_pack(blob).encode() == blob, "binary round trip"
         prog = spec["modules"]["progression"]
-        want = {
-            "linear_levels": spec["world"]["levels"],
-            "dungeons_items": spec["world"]["dungeons"],
-        }
+        world = spec["world"]
+        want = {"linear_levels": world.get("levels"), "dungeons_items": world.get("dungeons")}
         assert len(pack.levels) == want.get(prog, 1)
         for level in pack.levels:
             check_level(level, system)
@@ -116,6 +115,6 @@ def test_level_decoder_rejects_junk_cleanly():
         start = time.perf_counter()
         try:
             lv.decode_pack(data)  # reference decoder (tests/tools only): any plain error is ok
-        except (ValueError, IndexError, KeyError):
+        except (ValueError, IndexError, KeyError, struct.error):
             pass
         assert time.perf_counter() - start < SLOW
