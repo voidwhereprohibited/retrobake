@@ -21,6 +21,7 @@
 | ai | Pollinations.ai (free, no key) for cover art + names; offline procedural fallback; Cloudflare Workers AI optional backup | orchestrator |
 | ip | No copyrighted characters/names/assets ever; franchise references become style only | orchestrator |
 | license | GPL-3.0 | orchestrator |
+| kickoff | Wave 1 runs in parallel: release(#1), game-design(#2), security(#3), retroarch(#8). Wave 2 after #2/#3 done: nes-engine, snes-engine, wizard-ui, ai-art. qa(#9) last. | orchestrator |
 
 ## Contracts
 | name | owner | spec |
