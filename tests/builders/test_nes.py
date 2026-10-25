@@ -50,9 +50,10 @@ def test_text_data_centres_lines_and_terminates():
     assert len(nes.text_data("W" * 24)) < 256
 
 
-@pytest.mark.parametrize(
-    "bad", ["", "   ", "Hello`rm -rf`", ".jsr $C000", "\x00boom", "x" * 200]
-)
+BAD_TITLES = ["", "   ", "Hello`rm -rf`", ".jsr $C000", "\x00boom", "x" * 200]
+
+
+@pytest.mark.parametrize("bad", BAD_TITLES)
 def test_unsafe_titles_never_reach_the_build(bad):
     spec = _spec()
     spec["title"] = bad
@@ -71,7 +72,9 @@ def test_rejects_snes_and_broken_specs():
         nes.bake(broken)
 
 
-def test_missing_toolchain_is_plain_english(tmp_path):
+def test_missing_toolchain_is_plain_english(tmp_path, monkeypatch):
+    monkeypatch.delenv("RETROBAKE_CC65_DIR", raising=False)
+    monkeypatch.setattr(nes, "_app_root", lambda: tmp_path)
     with pytest.raises(nes.NesBuildError, match="reinstall"):
         nes.find_cc65(tmp_path)
 
