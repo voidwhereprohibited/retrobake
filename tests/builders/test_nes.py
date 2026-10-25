@@ -95,7 +95,8 @@ def test_bake_hello_world_rom_boots_and_shows_title():
     assert rom[-8192:] == font.chr_bank()
 
     m = Machine(rom)
-    m.run_until_idle()
+    m.run_frames(30)
+    assert m.ram_sig() == b"RB\x01\x01"  # qa rom-boot-signature: title screen
     title = font.tiles_for("Fox & Hills: 2!")
     start = 0x2000 + nes.TITLE_ROW * 32 + (32 - len(title)) // 2
     assert bytes(m.vram[start : start + len(title)]) == title
@@ -104,6 +105,18 @@ def test_bake_hello_world_rom_boots_and_shows_title():
     assert bytes(m.vram[cstart : cstart + len(credit)]) == credit
     assert m.vram[0x3F00] == 0x0F and m.vram[0x3F01] == 0x30
     assert m.ppumask == 0x0A  # background on
+    assert m.ppuctrl & 0x80  # frame interrupt on
+
+    m.buttons = 0x01 | 0x80  # Right + A: not Start, so still the title
+    m.run_frames(10)
+    assert m.ram_sig()[3] == 1
+    m.buttons = 0x10  # Start
+    m.run_frames(10)
+    m.buttons = 0
+    m.run_frames(5)
+    assert m.ram_sig() == b"RB\x01\x02"  # gameplay
+    assert m.vram[0x3F00] == 0x02  # backdrop switched on a vblank
+    assert m.frames == 55
 
 
 @needs_cc65
