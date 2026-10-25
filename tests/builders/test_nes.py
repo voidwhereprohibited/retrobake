@@ -1,7 +1,9 @@
 import os
 
 import pytest
-from nes_machine import Machine, zp_symbols
+from pathlib import Path
+
+from nes_machine import Machine, screenshot, zp_symbols
 
 from retrobake import spec as gs
 from retrobake.builders import nes, nes_gfx
@@ -146,6 +148,12 @@ def _hero_x(m):
     return _zp(m, "hpx_lo") | _zp(m, "hpx_hi") << 8
 
 
+def _shot(m, rom, name):
+    out = os.environ.get("RETROBAKE_SHOTS")
+    if out:
+        screenshot(m, rom[-8192:], Path(out) / f"{name}.png")
+
+
 def _in_code(m):
     return 0xD000 <= m.cpu.pc <= 0xFFFF
 
@@ -173,21 +181,25 @@ def test_platformer_title_start_and_play():
     assert m.ram_sig() == b"RB\x01\x01"  # title screen
     assert font.tiles_for("Fox & Hills: 2!") in m.nametable_text(10)
     assert font.tiles_for("PRESS START") in m.nametable_text(16)
+    _shot(m, result.rom, "1-title")
 
     m.hold(Machine.START, 5)
     m.run_frames(10)
     assert m.ram_sig() == b"RB\x01\x02"  # gameplay from here on
     assert font.tiles_for("STAGE 1") in m.nametable_text(12)
+    _shot(m, result.rom, "2-stage")
 
     m.run_frames(140)  # stage card times out, level 1 starts
     assert m.ppumask == 0x1E and _zp(m, "busy") == 0
     assert any(s[1] in (64, 68) for s in m.sprites()), "hero sprite on screen"
     assert any(m.vram[0x2000 + r * 32] >= 64 for r in range(24)), "level tiles drawn"
     assert _zp(m, "on_ground") == 1
+    _shot(m, result.rom, "3-level-start")
 
     x0 = _hero_x(m)
     m.hold(Machine.RIGHT, 60)
     assert _hero_x(m) > x0 + 40, "hero runs right"
+    _shot(m, result.rom, "4-running")
     assert _in_code(m)
 
     m.run_frames(30)
@@ -195,6 +207,7 @@ def test_platformer_title_start_and_play():
         y0 = _zp(m, "hpy")
         m.hold(Machine.A, 12)
         assert _zp(m, "hpy") < y0 - 30, "hero jumps at least 2 tiles"
+        _shot(m, result.rom, "5-jump")
         m.run_frames(60)
 
 
