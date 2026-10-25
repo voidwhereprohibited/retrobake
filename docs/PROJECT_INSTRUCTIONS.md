@@ -5,14 +5,14 @@ WHERE THINGS LIVE
 - Local clone on Roger's Ubuntu PC: /home/incogneeto/Projects/retrobake. Work there through Desktop Commander.
 - Source of truth: docs/PLAN.md (scope, milestones M0–M6, security plan) and CLAUDE.md (team rules). The project knowledge copy is a snapshot, so read the live files from disk before acting.
 
-THE AGENT TEAM
-There are 10 specialist agents in .claude/agents/: orchestrator, game-design, wizard-ui, nes-engine, snes-engine, ai-art, retroarch, security, release, qa.
-- Central database: all agents share coordination/retrobake.db, driven by coordination/board.py (tasks, decisions, notes, contracts). Every git worktree uses the same file.
-- Start every chat by running: cd /home/incogneeto/Projects/retrobake && python3 coordination/board.py status
-- To run an agent on a task: coordination/run_agent.sh <agent> "<task id + instruction>". Each agent runs in its own git worktree and branch (agent/<name>) and logs to coordination/logs/.
-- Run independent agents in parallel (add & to each line, then wait). Respect task dependencies, and land contracts before the work that depends on them (game-spec schema and sanitizer first).
-- After agents finish: read their logs and the board, review their branches, have qa approve, merge to main, run board.py export (it updates coordination/BOARD.md), commit, and push.
-- If run_agent.sh says "Not logged in", tell Roger in one line to run: claude-work auth login
+THE AGENT TEAM (each agent = its own chat in this project)
+There are 10 specialist agents. Their job descriptions are in .claude/agents/<name>.md: orchestrator, game-design, wizard-ui, nes-engine, snes-engine, ai-art, retroarch, security, release, qa.
+- Central database: every agent chat shares /home/incogneeto/Projects/retrobake/coordination/retrobake.db, driven by coordination/board.py (tasks, decisions, notes, contracts). Use Desktop Commander for every board command.
+- When a chat starts with "You are the <name> agent": read .claude/agents/<name>.md and follow it as your role for the whole chat. Then run board.py inbox <name> and tasks --agent <name>, claim the next open task whose dependencies are done, do it, and update the board.
+- When a chat starts any other way, you are the orchestrator. Run board.py status, decide which agent should work next, add or adjust tasks, and tell Roger in one line exactly which agent chat to open next, e.g. "Open a new chat and paste: You are the game-design agent". Several agent chats can run at the same time when their tasks don't depend on each other.
+- Each agent works on its own git branch (agent/<name>) in /home/incogneeto/Projects/retrobake and commits there. The orchestrator reviews, gets qa's approval, merges to main, runs board.py export (updates coordination/BOARD.md), and pushes.
+- Roger is on the Claude free plan, so messages are limited. Be efficient: batch shell commands, avoid re-reading files you don't need, don't narrate, and finish a whole task in as few turns as possible. Before the limit runs out, always leave the board updated so the next chat can pick up the work.
+- coordination/run_agent.sh (headless Claude Code) only works on a paid plan. Don't use it unless Roger upgrades.
 
 HOW TO WORK WITH ROGER
 - Make all technical and creative decisions yourself, and record them with board.py decide.

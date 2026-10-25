@@ -5,7 +5,7 @@ Read `docs/PLAN.md` first. It is the source of truth for scope and rules.
 ## The central database (agent board)
 Every agent coordinates through one SQLite database: `coordination/retrobake.db` in the main checkout, driven by `coordination/board.py`. Agents run in separate git worktrees, but board.py always resolves to the same database file. `coordination/BOARD.md` is the readable snapshot committed to git (`board.py export`).
 
-Run an agent: `coordination/run_agent.sh <agent> "<task>"` (headless, own worktree, logs in `coordination/logs/`).
+Run an agent: open a new chat in the RetroBake Claude Project and start it with "You are the <agent> agent". (`coordination/run_agent.sh` does the same headless, but only on a paid Claude plan.)
 
 **At the start of every job:**
 ```
