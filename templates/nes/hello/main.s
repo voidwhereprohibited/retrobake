@@ -13,7 +13,13 @@ PPUSCROLL = $2005
 PPUADDR   = $2006
 PPUDATA   = $2007
 DMC_FREQ  = $4010
+JOY1      = $4016
 APU_FRAME = $4017
+
+SIG            = $07FC  ; 4 reserved bytes: 'R' 'B' version state (see tests/TEST_PLAN.md)
+STATE_GAMEPLAY = $02
+BTN_START      = $10
+GAMEPLAY_BG    = $02    ; dark blue backdrop once the game starts
 
 .segment "HEADER"
     .byte "NES", $1A
@@ -24,7 +30,10 @@ APU_FRAME = $4017
     .res 8, $00
 
 .segment "ZEROPAGE"
-ptr: .res 2
+ptr:     .res 2
+frame:   .res 1
+pad:     .res 1
+painted: .res 1
 
 .segment "CODE"
 
@@ -120,21 +129,76 @@ put_tile:
     jmp next_record
 text_done:
 
-    ; turn the screen on at the start of a frame
+    ; boot signature (qa contract rom-boot-signature): "R" "B" v1, state 1 = title
+    lda #$52
+    sta SIG
+    lda #$42
+    sta SIG+1
+    lda #$01
+    sta SIG+2
+    sta SIG+3
+
+    ; turn the screen on at the start of a frame, with the vblank NMI on
 vblank3:
     bit PPUSTATUS
     bpl vblank3
     lda #$00
     sta PPUSCROLL
     sta PPUSCROLL
-    sta PPUCTRL         ; background tiles from $0000
+    lda #%10000000      ; NMI on, background tiles from $0000
+    sta PPUCTRL
     lda #%00001010      ; show background, including the left 8 pixels
     sta PPUMASK
-forever:
-    jmp forever
+
+main_loop:
+    lda frame           ; wait for the next frame
+wait_frame:
+    cmp frame
+    beq wait_frame
+
+    lda #$01            ; read controller 1: A B Select Start Up Down Left Right
+    sta JOY1
+    lda #$00
+    sta JOY1
+    ldx #8
+read_pad:
+    lda JOY1
+    lsr a
+    rol pad
+    dex
+    bne read_pad
+
+    lda pad
+    and #BTN_START
+    beq main_loop
+    lda #STATE_GAMEPLAY ; Start pressed: the game begins
+    sta SIG+3
+    jmp main_loop
 .endproc
 
 .proc nmi
+    pha
+    inc frame
+    lda SIG+3
+    cmp #STATE_GAMEPLAY
+    bne done
+    lda painted
+    bne done
+    inc painted         ; first gameplay frame: switch the backdrop to blue
+    bit PPUSTATUS
+    lda #$3F
+    sta PPUADDR
+    lda #$00
+    sta PPUADDR
+    lda #GAMEPLAY_BG
+    sta PPUDATA
+    lda #$00
+    sta PPUADDR
+    sta PPUADDR
+    sta PPUSCROLL
+    sta PPUSCROLL
+done:
+    pla
     rti
 .endproc
 
