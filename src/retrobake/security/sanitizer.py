@@ -11,7 +11,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 from .errors import InputRejected
 
@@ -70,9 +70,22 @@ def _to_ascii(text: str) -> str:
 def clean_text(
     text: str, *, max_len: int, multiline: bool = False, ascii_only: bool = False
 ) -> str:
-    """Return a cleaned copy of ``text``. Never raises for content, only for wrong types."""
+    """Return a cleaned copy of ``text``. Never raises for content, only for wrong types.
+
+    Idempotent: cleaning the result again returns it unchanged (dropping marks can let NFKC
+    recompose letters, so the pass repeats until nothing changes)."""
     if not isinstance(text, str):
         raise TypeError("text must be a string")
+    out = _clean_once(text, max_len, multiline, ascii_only)
+    for _ in range(4):
+        again = _clean_once(out, max_len, multiline, ascii_only)
+        if again == out:
+            return out
+        out = again
+    return out
+
+
+def _clean_once(text: str, max_len: int, multiline: bool, ascii_only: bool) -> str:
     text = text[: max_len * 4 + 64]  # bound the work before normalising
     text = unicodedata.normalize("NFKC", text).replace("\r\n", "\n").replace("\r", "\n")
     out: list[str] = []
@@ -148,12 +161,37 @@ def safe_filename(name: str, ext: str = "", *, fallback: str = "my-game") -> str
     return f"{base}.{ext}" if ext else base
 
 
-def safe_join(base: str | Path, *parts: str) -> Path:
-    """Join ``parts`` under ``base`` and refuse anything that escapes it (../, absolute, links)."""
-    root = Path(base).resolve()
-    target = root.joinpath(*parts).resolve()
-    if target != root and root not in target.parents:
-        from .errors import SandboxError
+def _bad_part(part: object) -> str | None:
+    if not isinstance(part, str):
+        return "not text"
+    if "\x00" in part or len(part) > 255 * 4:
+        return "bad characters or too long"
+    try:
+        part.encode("utf-8")
+    except UnicodeEncodeError:
+        return "bad characters"
+    win = PureWindowsPath(part)
+    if part.startswith(("\\\\", "//", "/", "\\")) or win.drive or win.root:
+        return "absolute or network path"  # never let Windows look up a \\server\share
+    return None
 
-        raise SandboxError(f"path escapes {root}: {'/'.join(parts)!r}")
+
+def safe_join(base: str | Path, *parts: str) -> Path:
+    """Join ``parts`` under ``base`` and refuse anything that escapes it (../, absolute, network
+    paths, links). Only ever raises SandboxError for bad parts."""
+    from .errors import SandboxError
+
+    for part in parts:
+        why = _bad_part(part)
+        if why:
+            raise SandboxError(f"bad path part ({why}): {str(part)[:60]!r}")
+    if sum(len(p) for p in parts) > 1024:
+        raise SandboxError("path is too long")
+    try:
+        root = Path(base).resolve()
+        target = root.joinpath(*parts).resolve()
+    except (OSError, ValueError, RuntimeError) as exc:
+        raise SandboxError(f"bad path: {exc}") from None
+    if target != root and root not in target.parents:
+        raise SandboxError(f"path escapes {root}: {'/'.join(parts)[:120]!r}")
     return target

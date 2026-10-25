@@ -29,14 +29,14 @@ POLLINATIONS_REQUIRED_PARAMS: dict[str, str] = {
 POLLINATIONS_GEN_SAFE = "true,sexual,violence"
 MAX_PROMPT_CHARS = 900
 
-# Phrases that try to steer the AI instead of describing the game.
+# Phrases that try to steer the AI instead of describing the game. No leading word
+# boundaries: a letter glued in front ("Xignore ...", any script, digits, "_") must not hide them.
 _INJECTION = re.compile(
-    r"(?ix)\b(?:"
-    r"ignore|disregard|forget|override|bypass)\b[^.\n]{0,40}?\b(?:"
-    r"instruction|instructions|prompt|rules?|above|previous|prior|system)\b"
-    r"|\b(?:system|assistant|developer|user)\s*(?:prompt|message|role)?\s*:"
-    r"|\b(?:jailbreak|dan\s+mode|developer\s+mode|act\s+as|pretend\s+(?:to\s+be|you))\b"
-    r"|\bnsfw\b|\bnude\b|\bnaked\b|\bgore\b"
+    r"(?is)(?:ignore|disregard|forget|override|overrule|bypass|skip)"
+    r"[^.\n]{0,40}?(?:instruction|prompt|rule|above|previous|prior|system|guideline)s?"
+    r"|(?:system|assistant|developer|user|human|ai)\s*(?:prompt|message|role)?\s*[:>]"
+    r"|you\s+are\s+now|new\s+instructions?|jailbreak|dan\s+mode|developer\s+mode"
+    r"|act\s+as|pretend\s+(?:to\s+be|you)|nsfw|nude|naked|gore"
 )
 _URL = re.compile(r"(?i)\b(?:https?://|www\.)\S+|\b\S+\.(?:com|net|org|io|ai|xyz|ru|cn)\b")
 _META = re.compile(r"[<>{}\[\]`|\\^~\"#*=]+")
@@ -45,9 +45,15 @@ _META = re.compile(r"[<>{}\[\]`|\\^~\"#*=]+")
 def quote_user_text(text: str, *, max_len: int = 200) -> str:
     """Make user text safe to drop into a prompt slot. Returns a double-quoted string."""
     cleaned = clean_text(text, max_len=max_len)
-    cleaned = _URL.sub(" ", cleaned)
-    cleaned = _INJECTION.sub(" ", cleaned)
-    cleaned = _META.sub(" ", cleaned)
+    for _ in range(8):  # removing one phrase can join the pieces of another
+        before = cleaned
+        cleaned = _URL.sub(" ", cleaned)
+        cleaned = _INJECTION.sub(" ", cleaned)
+        cleaned = _META.sub(" ", cleaned)
+        if cleaned == before:
+            break
+    else:
+        cleaned = ""
     cleaned, _ = scrub_ip(cleaned)
     cleaned = re.sub(r"\s{2,}", " ", cleaned).strip(" .,;:-")
     return f'"{cleaned}"' if cleaned else '"an original game"'
@@ -61,6 +67,8 @@ def check_prompt(prompt: str) -> str:
         raise InputRejected("prompt", "The game description is too long for the art request.")
     if clean_text(prompt, max_len=MAX_PROMPT_CHARS, multiline=True) != prompt.strip():
         raise InputRejected("prompt", "The art request had hidden characters and was stopped.")
+    if _INJECTION.search(prompt):
+        raise InputRejected("prompt", "The art request had instructions in it, so it was stopped.")
     if find_ip(prompt) or _URL.search(prompt):
         raise InputRejected("prompt", "The art request mentioned another game, so it was stopped.")
     return prompt.strip()
