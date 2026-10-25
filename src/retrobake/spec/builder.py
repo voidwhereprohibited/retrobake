@@ -5,6 +5,8 @@ from __future__ import annotations
 import secrets
 from typing import Any
 
+from retrobake.security import scrub_ip
+
 from .catalog import SPEC_VERSION, catalog
 from .rules import Fix, resolve
 from .style_refs import style_from_text
@@ -60,7 +62,7 @@ def new_spec(
         "system": system,
         "genres": list(genres),
         "title": title,
-        "description": hints.clean_text,
+        "description": scrub_ip(hints.clean_text)[0],
         "hero": {"archetype": "knight" if modules["combat"] == "melee" else "explorer"},
         "modules": modules,
         "world": world,
