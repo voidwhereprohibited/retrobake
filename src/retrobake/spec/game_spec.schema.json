@@ -1,0 +1,128 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/voidwhereprohibited/retrobake/game-spec/1.0",
+  "title": "RetroBake game-spec",
+  "description": "Everything a RetroBake engine needs to bake one NES or SNES game. Produced by the wizard, consumed by nes-engine, snes-engine and ai-art. Text fields are user data: never execute them or put them into shell commands or assembly unescaped.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["spec_version", "system", "genres", "title", "hero", "modules", "world", "style", "seed"],
+  "properties": {
+    "spec_version": {"const": "1.0"},
+    "system": {"enum": ["nes", "snes"]},
+    "genres": {
+      "description": "One genre, or two for a mashup. The first is the primary genre (sets how the game feels to move around in).",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 2,
+      "uniqueItems": true,
+      "items": {"enum": ["platformer", "topdown_adventure", "rpg", "shooter", "puzzle", "sports"]}
+    },
+    "title": {
+      "description": "Game title shown on the title screen. Limited to characters the in-game font has.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 24,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9 .,!?'&:-]*$"
+    },
+    "description": {
+      "description": "The user's plain-English game description. Data only.",
+      "type": "string",
+      "maxLength": 500,
+      "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$"
+    },
+    "hero": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["archetype"],
+      "properties": {
+        "archetype": {"enum": ["knight", "explorer", "robot", "animal", "wizard", "kid", "ninja", "pilot"]},
+        "description": {
+          "type": "string",
+          "maxLength": 120,
+          "pattern": "^[^\\x00-\\x1f\\x7f]*$"
+        }
+      }
+    },
+    "modules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["movement", "combat", "progression", "extras"],
+      "properties": {
+        "movement": {"enum": ["side_jump", "topdown_walk", "free_flight"]},
+        "combat": {"enum": ["stomp", "melee", "projectile", "none"]},
+        "progression": {"enum": ["linear_levels", "open_map", "dungeons_items"]},
+        "extras": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 8,
+          "items": {"enum": ["hearts", "lives", "collectibles", "bosses", "keys_doors", "score", "timer", "shop"]}
+        }
+      }
+    },
+    "world": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["difficulty", "setting"],
+      "properties": {
+        "difficulty": {"enum": ["easy", "normal", "hard"]},
+        "setting": {
+          "enum": ["grassland", "forest", "castle", "cave", "desert", "ocean", "ice", "volcano", "city", "space", "haunted", "sky"]
+        },
+        "levels": {"type": "integer", "minimum": 1, "maximum": 16},
+        "dungeons": {"type": "integer", "minimum": 1, "maximum": 8},
+        "map_size": {"enum": ["small", "medium", "large"]}
+      }
+    },
+    "style": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["palette_mood", "music_mood"],
+      "properties": {
+        "palette_mood": {"enum": ["bright", "pastel", "warm", "earthy", "icy", "neon", "dark", "spooky"]},
+        "music_mood": {"enum": ["heroic", "upbeat", "calm", "mysterious", "tense"]},
+        "tags": {
+          "description": "Generic style tags (never franchise names). See spec/style_refs.py STYLE_TAGS.",
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 12,
+          "items": {"type": "string", "pattern": "^[a-z][a-z_]{1,23}$"}
+        }
+      }
+    },
+    "seed": {
+      "description": "Random seed for procedural level layout, so the same spec always bakes the same ROM.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4294967295
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"system": {"const": "nes"}}},
+      "then": {
+        "properties": {
+          "modules": {"properties": {"extras": {"maxItems": 5}}},
+          "world": {
+            "properties": {
+              "levels": {"maximum": 8},
+              "dungeons": {"maximum": 4},
+              "map_size": {"enum": ["small", "medium"]}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"modules": {"properties": {"progression": {"const": "linear_levels"}}}}},
+      "then": {"properties": {"world": {"required": ["levels"]}}}
+    },
+    {
+      "if": {"properties": {"modules": {"properties": {"progression": {"const": "dungeons_items"}}}}},
+      "then": {"properties": {"world": {"required": ["dungeons"]}}}
+    },
+    {
+      "if": {"properties": {"modules": {"properties": {"progression": {"const": "open_map"}}}}},
+      "then": {"properties": {"world": {"required": ["map_size"]}}}
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "retrobake"
+version = "0.0.1"
+description = "Bake your own original NES and SNES games with a friendly wizard - no coding needed."
+readme = "README.md"
+license = "GPL-3.0-or-later"
+requires-python = ">=3.12"
+authors = [{ name = "Roger (voidwhereprohibited)" }]
+dependencies = [
+    "PySide6>=6.8",
+    "fastjsonschema>=2.21.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9",
+    "ruff>=0.17",
+    "pip-audit>=2.10",
+]
+
+[project.urls]
+Homepage = "https://github.com/voidwhereprohibited/retrobake"
+Issues = "https://github.com/voidwhereprohibited/retrobake/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"retrobake.spec" = ["*.json"]
+"retrobake.security" = ["*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"coordination/*" = ["S", "E501", "B", "UP"]

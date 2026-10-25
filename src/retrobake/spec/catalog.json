@@ -1,0 +1,181 @@
+{
+  "spec_version": "1.0",
+  "systems": {
+    "nes": {
+      "label": "NES (8-bit)",
+      "max_levels": 8,
+      "max_dungeons": 4,
+      "map_sizes": ["small", "medium"],
+      "max_extras": 5
+    },
+    "snes": {
+      "label": "SNES (16-bit)",
+      "max_levels": 16,
+      "max_dungeons": 8,
+      "map_sizes": ["small", "medium", "large"],
+      "max_extras": 8
+    }
+  },
+  "genres": {
+    "platformer": {
+      "label": "Platformer (run and jump)",
+      "available": true,
+      "modules": {
+        "movement": "side_jump",
+        "combat": "stomp",
+        "progression": "linear_levels",
+        "extras": ["lives", "collectibles", "bosses"]
+      },
+      "world": {"levels": 4, "difficulty": "normal", "setting": "grassland"}
+    },
+    "topdown_adventure": {
+      "label": "Top-down adventure (explore and fight)",
+      "available": true,
+      "modules": {
+        "movement": "topdown_walk",
+        "combat": "melee",
+        "progression": "dungeons_items",
+        "extras": ["hearts", "keys_doors", "bosses", "collectibles"]
+      },
+      "world": {"dungeons": 3, "difficulty": "normal", "setting": "forest"}
+    },
+    "rpg": {
+      "label": "Role-playing adventure",
+      "available": false,
+      "modules": {
+        "movement": "topdown_walk",
+        "combat": "melee",
+        "progression": "open_map",
+        "extras": ["hearts", "shop", "collectibles", "bosses"]
+      },
+      "world": {"map_size": "medium", "difficulty": "normal", "setting": "castle"}
+    },
+    "shooter": {
+      "label": "Shooter (fly and blast)",
+      "available": false,
+      "modules": {
+        "movement": "free_flight",
+        "combat": "projectile",
+        "progression": "linear_levels",
+        "extras": ["lives", "score", "bosses"]
+      },
+      "world": {"levels": 5, "difficulty": "normal", "setting": "space"}
+    },
+    "puzzle": {
+      "label": "Puzzle",
+      "available": false,
+      "modules": {
+        "movement": "topdown_walk",
+        "combat": "none",
+        "progression": "linear_levels",
+        "extras": ["keys_doors", "timer", "score"]
+      },
+      "world": {"levels": 8, "difficulty": "normal", "setting": "castle"}
+    },
+    "sports": {
+      "label": "Sports",
+      "available": false,
+      "modules": {
+        "movement": "topdown_walk",
+        "combat": "none",
+        "progression": "linear_levels",
+        "extras": ["score", "timer"]
+      },
+      "world": {"levels": 3, "difficulty": "normal", "setting": "city"}
+    }
+  },
+  "mashup_recipes": {
+    "platformer+topdown_adventure": {
+      "movement": "side_jump",
+      "combat": "melee",
+      "progression": "dungeons_items",
+      "extras": ["hearts", "keys_doors", "bosses", "collectibles"]
+    },
+    "topdown_adventure+platformer": {
+      "movement": "topdown_walk",
+      "combat": "melee",
+      "progression": "linear_levels",
+      "extras": ["lives", "collectibles", "bosses", "score"]
+    }
+  },
+  "modules": {
+    "movement": {
+      "side_jump": {"label": "Run and jump (side view)", "available": true},
+      "topdown_walk": {"label": "Walk around (top-down view)", "available": true},
+      "free_flight": {"label": "Fly freely", "available": false}
+    },
+    "combat": {
+      "stomp": {"label": "Jump on enemies", "available": true},
+      "melee": {"label": "Swing a sword", "available": true},
+      "projectile": {"label": "Shoot", "available": true},
+      "none": {"label": "No fighting - avoid enemies", "available": true}
+    },
+    "progression": {
+      "linear_levels": {"label": "One stage after another", "available": true},
+      "open_map": {"label": "One big world to explore", "available": true},
+      "dungeons_items": {"label": "Dungeons with items to find", "available": true}
+    },
+    "extras": {
+      "hearts": {"label": "Health hearts", "available": true},
+      "lives": {"label": "Extra lives", "available": true},
+      "collectibles": {"label": "Things to collect", "available": true},
+      "bosses": {"label": "Boss fights", "available": true},
+      "keys_doors": {"label": "Keys and locked doors", "available": true},
+      "score": {"label": "Score counter", "available": true},
+      "timer": {"label": "Time limit", "available": true},
+      "shop": {"label": "Shop to buy things", "available": true}
+    }
+  },
+  "extras_priority": ["hearts", "lives", "bosses", "collectibles", "keys_doors", "score", "shop", "timer"],
+  "hero_archetypes": {
+    "knight": "Brave knight",
+    "explorer": "Explorer",
+    "robot": "Little robot",
+    "animal": "Animal hero",
+    "wizard": "Young wizard",
+    "kid": "Ordinary kid",
+    "ninja": "Ninja",
+    "pilot": "Pilot"
+  },
+  "settings": {
+    "grassland": "Green hills",
+    "forest": "Forest",
+    "castle": "Castle",
+    "cave": "Caves",
+    "desert": "Desert",
+    "ocean": "Ocean and beaches",
+    "ice": "Snow and ice",
+    "volcano": "Volcano",
+    "city": "City",
+    "space": "Outer space",
+    "haunted": "Haunted house",
+    "sky": "Sky islands"
+  },
+  "difficulties": {
+    "easy": "Easy - relaxed",
+    "normal": "Normal",
+    "hard": "Hard - a real challenge"
+  },
+  "map_sizes": {
+    "small": "Small",
+    "medium": "Medium",
+    "large": "Large"
+  },
+  "palette_moods": {
+    "bright": "Bright and cheerful",
+    "pastel": "Soft pastel",
+    "warm": "Warm sunset",
+    "earthy": "Earthy and natural",
+    "icy": "Cool and icy",
+    "neon": "Neon",
+    "dark": "Dark and moody",
+    "spooky": "Spooky"
+  },
+  "music_moods": {
+    "heroic": "Heroic",
+    "upbeat": "Upbeat and fun",
+    "calm": "Calm",
+    "mysterious": "Mysterious",
+    "tense": "Tense and fast"
+  }
+}
