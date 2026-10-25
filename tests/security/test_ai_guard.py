@@ -30,8 +30,13 @@ def test_quote_empty_falls_back():
 def test_check_prompt():
     ok = 'Pixel art box cover for an original retro game about "a brave fox in a forest".'
     assert check_prompt(ok) == ok
-    for bad in ("", "cover art of Sonic the Hedgehog", "x" * 2000, "hi\u202ethere",
-                "see www.example.com"):
+    for bad in (
+        "",
+        "cover art of Sonic the Hedgehog",
+        "x" * 2000,
+        "hi\u202ethere",
+        "see www.example.com",
+    ):
         with pytest.raises(InputRejected):
             check_prompt(bad)
 
@@ -49,7 +54,8 @@ def test_validate_name():
 
 
 def _png(w, h):
-    return b"\x89PNG\r\n\x1a\n" + struct.pack(">I", 13) + b"IHDR" + struct.pack(">II", w, h) + b"\0" * 9
+    head = b"\x89PNG\r\n\x1a\n" + struct.pack(">I", 13) + b"IHDR"
+    return head + struct.pack(">II", w, h) + b"\0" * 9
 
 
 def _jpeg(w, h):
@@ -71,7 +77,13 @@ def test_validate_image_good():
 
 
 def test_validate_image_bad():
-    for bad in (b"", b"GIF89a....", _png(10, 10), _png(5000, 5000), "text",
-                b"\x89PNG\r\n\x1a\n" + b"\0" * (9 * 1024 * 1024)):
+    for bad in (
+        b"",
+        b"GIF89a....",
+        _png(10, 10),
+        _png(5000, 5000),
+        "text",
+        b"\x89PNG\r\n\x1a\n" + b"\0" * (9 * 1024 * 1024),
+    ):
         with pytest.raises(OutputRejected):
             validate_image(bad)

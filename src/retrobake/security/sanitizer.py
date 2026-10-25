@@ -38,15 +38,26 @@ _TITLE_HINT = "Use letters, numbers, spaces and simple punctuation (. , ! ? ' & 
 
 # Keep in step with src/retrobake/spec/game_spec.schema.json (game-design contract).
 FIELDS: dict[str, FieldRule] = {
-    "title": FieldRule(24, ascii_only=True, min_len=1, hint=_TITLE_HINT,
-                       pattern=r"[A-Za-z0-9][A-Za-z0-9 .,!?'&:-]*"),
-    "name_idea": FieldRule(24, ascii_only=True, min_len=1, hint=_TITLE_HINT,
-                           pattern=r"[A-Za-z0-9][A-Za-z0-9 .,!?'&:-]*"),
+    "title": FieldRule(
+        24,
+        ascii_only=True,
+        min_len=1,
+        hint=_TITLE_HINT,
+        pattern=r"[A-Za-z0-9][A-Za-z0-9 .,!?'&:-]*",
+    ),
+    "name_idea": FieldRule(
+        24,
+        ascii_only=True,
+        min_len=1,
+        hint=_TITLE_HINT,
+        pattern=r"[A-Za-z0-9][A-Za-z0-9 .,!?'&:-]*",
+    ),
     "description": FieldRule(500, multiline=True),
     "hero_description": FieldRule(120),
     "answer": FieldRule(80),
-    "style_tag": FieldRule(24, ascii_only=True, pattern=r"[a-z][a-z_]{1,23}",
-                           hint="Style tags are lowercase words."),
+    "style_tag": FieldRule(
+        24, ascii_only=True, pattern=r"[a-z][a-z_]{1,23}", hint="Style tags are lowercase words."
+    ),
 }
 
 
@@ -56,7 +67,9 @@ def _to_ascii(text: str) -> str:
     return "".join(ch for ch in text if ch.isascii())
 
 
-def clean_text(text: str, *, max_len: int, multiline: bool = False, ascii_only: bool = False) -> str:
+def clean_text(
+    text: str, *, max_len: int, multiline: bool = False, ascii_only: bool = False
+) -> str:
     """Return a cleaned copy of ``text``. Never raises for content, only for wrong types."""
     if not isinstance(text, str):
         raise TypeError("text must be a string")
@@ -102,8 +115,9 @@ def sanitize(field: str, text: str) -> str:
         raise KeyError(f"unknown field {field!r}; add it to FIELDS")
     if not isinstance(text, str):
         raise InputRejected(field, "Please type some text.")
-    cleaned = clean_text(text, max_len=rule.max_len, multiline=rule.multiline,
-                         ascii_only=rule.ascii_only)
+    cleaned = clean_text(
+        text, max_len=rule.max_len, multiline=rule.multiline, ascii_only=rule.ascii_only
+    )
     if len(cleaned) < rule.min_len:
         raise InputRejected(field, "Please type at least one letter or number.")
     if rule.pattern and cleaned and not re.fullmatch(rule.pattern, cleaned):
