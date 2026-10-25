@@ -75,3 +75,60 @@ def test_network_blocked_when_supported(tmp_path):
         if not res.network_isolated:
             pytest.skip("this OS does not allow a private network namespace")
         assert res.ok
+
+
+def test_cleanup_retries_locked_folder(tmp_path, monkeypatch):
+    import shutil as _shutil
+
+    real = _shutil.rmtree
+    calls = {"n": 0}
+
+    def flaky(path, **kw):
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise PermissionError(32, "being used by another process")
+        return real(path, **kw)
+
+    monkeypatch.setattr("retrobake.security.sandbox.shutil.rmtree", flaky)
+    ws = BuildWorkspace([tmp_path]).__enter__()
+    root = ws.root
+    ws.cleanup()
+    assert calls["n"] == 3 and not root.exists()
+
+
+def test_cleanup_failure_keeps_original_error(tmp_path, monkeypatch):
+    def locked(path, **kw):
+        raise PermissionError(32, "being used by another process")
+
+    monkeypatch.setattr("retrobake.security.sandbox.shutil.rmtree", locked)
+    monkeypatch.setattr("retrobake.security.sandbox.time.sleep", lambda s: None)
+    with pytest.raises(SandboxError, match="too long"):
+        with BuildWorkspace([tmp_path]) as ws:
+            root = ws.root
+            raise SandboxError("the build took too long and was stopped")
+    with pytest.raises(SandboxError, match="could not remove"):
+        with BuildWorkspace([tmp_path]):
+            pass
+    monkeypatch.undo()
+    _shutil_cleanup(root)
+
+
+def _shutil_cleanup(path):
+    import shutil as _shutil
+
+    _shutil.rmtree(path, ignore_errors=True)
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows job objects")
+def test_windows_children_die_with_build(tmp_path):
+    code = (
+        "import subprocess,sys,time;"
+        "subprocess.Popen([sys.executable,'-c','import time; time.sleep(60)']);"
+        "time.sleep(60)"
+    )
+    limits = BuildLimits(timeout_s=3)
+    with pytest.raises(SandboxError):
+        with BuildWorkspace([tmp_path], limits) as ws:
+            root = ws.root
+            run_build(_py(code), workspace=ws, toolchain_dirs=TOOLS)
+    assert not root.exists()
