@@ -44,7 +44,7 @@ def test_deterministic_and_variants_differ():
 )
 def test_every_setting_and_mood_renders(setting, mood):
     img = offline_art(spec(world={"setting": setting}, style={"palette_mood": mood}))
-    assert len(set(img.data[i : i + 3] for i in range(0, len(img.data), 3 * 97))) > 4
+    assert len(set(bytes(img.data[i : i + 3]) for i in range(0, len(img.data), 3 * 97))) > 4
 
 
 @pytest.mark.parametrize("arch", sorted(_H_WORDS))

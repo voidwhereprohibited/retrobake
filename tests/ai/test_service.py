@@ -40,8 +40,8 @@ class FakeProvider(Provider):
         return self._txt
 
 
-def svc(provider=None, **settings):
-    return AIService(AISettings(**settings), cache_dir=False, provider=provider)
+def svc(fake=None, **settings):
+    return AIService(AISettings(**settings), cache_dir=False, provider=fake)
 
 
 def test_offline_setting_never_calls_provider():
