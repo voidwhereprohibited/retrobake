@@ -145,13 +145,15 @@ class Frontend:
         if lib.retro_api_version() != 1:
             raise RuntimeError("core is not libretro API v1")
         env, video, audio, batch, poll, state = self._cbs
+        # Same order as RetroArch: environment, init, then the other callbacks
+        # (Mesen's setters dereference objects that only exist after retro_init).
         lib.retro_set_environment(env)
+        lib.retro_init()
         lib.retro_set_video_refresh(video)
         lib.retro_set_audio_sample(audio)
         lib.retro_set_audio_sample_batch(batch)
         lib.retro_set_input_poll(poll)
         lib.retro_set_input_state(state)
-        lib.retro_init()
         info = SystemInfo()
         lib.retro_get_system_info(C.byref(info))
         data = rom.read_bytes()
