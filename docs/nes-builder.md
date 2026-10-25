@@ -25,6 +25,9 @@ rom_bytes = result.rom             # complete iNES file, write it with a .nes ex
 NROM-128 (mapper 0, 16 KB PRG + 8 KB CHR, vertical mirroring). Title centred on row 12 and
 "MADE WITH RETROBAKE" on row 22, white on black, RetroBake's own font
 (`builders/nes_font.py`, charset = spec title charset, lowercase drawn as uppercase).
+Implements qa's `rom-boot-signature`: `$07FC-$07FF` = `52 42 01 state` (1 title, 2 gameplay);
+pressing Start switches to gameplay (backdrop turns dark blue). NMI drives a 1-frame main loop;
+RAM for engine variables stops at `$07FB`. CI job `nes-bake` boots it on Mesen + FCEUmm.
 
 ## Safety
 - The template (`templates/nes/hello/main.s`, `nrom.cfg`) is fixed code. The builder writes
