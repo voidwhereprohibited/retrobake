@@ -159,9 +159,7 @@ def bake(
     tools = find_wladx(wla_dir)
     template = templates_dir() / ENGINE
     if not (template / "main.asm").is_file():
-        raise SnesBuildError(
-            "RetroBake's SNES game files are missing. Please reinstall RetroBake."
-        )
+        raise SnesBuildError("RetroBake's SNES game files are missing. Please reinstall RetroBake.")
     try:
         with BuildWorkspace([templates_dir()], limits) as ws:
             ws.copy_template(template, ".")
