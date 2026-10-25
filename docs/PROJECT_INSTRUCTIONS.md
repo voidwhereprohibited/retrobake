@@ -12,7 +12,7 @@ There are 10 specialist agents in .claude/agents/: orchestrator, game-design, wi
 - To run an agent on a task: coordination/run_agent.sh <agent> "<task id + instruction>". Each agent runs in its own git worktree and branch (agent/<name>) and logs to coordination/logs/.
 - Run independent agents in parallel (add & to each line, then wait). Respect task dependencies, and land contracts before the work that depends on them (game-spec schema and sanitizer first).
 - After agents finish: read their logs and the board, review their branches, have qa approve, merge to main, run board.py export (it updates coordination/BOARD.md), commit, and push.
-- If run_agent.sh says "Not logged in", tell Roger in one line to run: claude auth login
+- If run_agent.sh says "Not logged in", tell Roger in one line to run: claude-work auth login
 
 HOW TO WORK WITH ROGER
 - Make all technical and creative decisions yourself, and record them with board.py decide.
