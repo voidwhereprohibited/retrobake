@@ -141,7 +141,20 @@ def main(argv):
         show(rows, ("id", "topic", "decision", "agent", "created"))
     elif cmd == "note":
         to = opt(args, "--to") or "*"
-        con.execute("INSERT INTO notes(from_agent,to_agent,message,created) VALUES(?,?,?,?)", (args[0], to, args[1], now()))
+        frm = opt(args, "--from")
+        pos, skip = [], False
+        for a in args:
+            if skip:
+                skip = False
+            elif a in ("--to", "--from"):
+                skip = True
+            else:
+                pos.append(a)
+        if frm:
+            pos.insert(0, frm)
+        if len(pos) < 2:
+            sys.exit('usage: note AGENT "message" [--to AGENT]  (or --from AGENT)')
+        con.execute("INSERT INTO notes(from_agent,to_agent,message,created) VALUES(?,?,?,?)", (pos[0], to, pos[1], now()))
         print(f"note sent to {to}")
     elif cmd == "inbox":
         rows = con.execute("SELECT * FROM notes WHERE (to_agent=? OR to_agent='*') AND read=0 ORDER BY id", (args[0],)).fetchall()
