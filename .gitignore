@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.coverage
+# baked output
+out/
+*.nes
+*.sfc
+!tests/fixtures/*.nes
+!tests/fixtures/*.sfc
+# sqlite temp files (the board db itself IS committed so every agent shares it)
+coordination/*.db-journal
+coordination/*.db-wal
+coordination/*.db-shm
