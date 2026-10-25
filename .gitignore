@@ -20,3 +20,6 @@ coordination/*.db-wal
 coordination/*.db-shm
 coordination/logs/
 .claude/worktrees/
+
+# qa: libretro cores downloaded for boot tests
+tests/emulator/.cores/
