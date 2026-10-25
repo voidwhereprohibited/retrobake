@@ -10,7 +10,7 @@ TASK="$*"
 mkdir -p coordination/logs
 LOG="coordination/logs/$(date +%Y%m%d-%H%M%S)-${AGENT}.log"
 echo "[$AGENT] started -> $LOG"
-claude -p --agent "$AGENT" \
+CLAUDE_CONFIG_DIR="${RETROBAKE_CLAUDE_CONFIG:-$HOME/.claude-work}" "$HOME/.local/bin/claude" -p --agent "$AGENT" \
   --permission-mode acceptEdits \
   --allowedTools "Bash,Read,Write,Edit,Grep,Glob,WebSearch,WebFetch" \
   -w "agent-${AGENT}-$(date +%H%M%S)" \
