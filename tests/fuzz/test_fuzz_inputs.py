@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import os
 import random
-import sys
 import time
 import unicodedata
 from pathlib import Path
@@ -136,12 +135,9 @@ def test_sanitize_only_rejects_cleanly_and_output_is_safe(field):
             assert out.isascii()
 
 
-_BUG28 = pytest.mark.xfail(strict=True, reason="board task #28 (security): stacked marks")
-
-
 @pytest.mark.parametrize(
     "field",
-    [pytest.param(f, marks=() if FIELDS[f].ascii_only else _BUG28) for f in sorted(FIELDS)],
+    sorted(FIELDS),
 )
 def test_sanitize_is_idempotent(field):
     for text in corpus(seed=sum(map(ord, field))):
@@ -205,7 +201,6 @@ def test_ai_prompts_are_guarded_against_everything():
 INJECTION_MARKERS = ("ignore all previous", "system:", "disregard the rules", "override the system")
 
 
-@pytest.mark.xfail(strict=True, reason="board task #27 (security): glued-letter injection bypass")
 def test_prompt_injection_phrases_never_reach_prompts():
     rng = random.Random(20)
     for phrase in INJECT[:4]:
@@ -322,16 +317,12 @@ def test_safe_join_never_escapes_or_crashes(tmp_path: Path):
             assert target == resolved or resolved in target.parents
 
 
-@pytest.mark.xfail(strict=True, reason="board task #29 (security): raw ValueError/UnicodeError")
 @pytest.mark.parametrize("bad", ["a\x00b", "a\ud800b"], ids=["nul", "surrogate"])
 def test_safe_join_rejects_unencodable_cleanly(tmp_path: Path, bad):
     with pytest.raises(SandboxError):
         safe_join(tmp_path, bad)
 
 
-@pytest.mark.xfail(
-    sys.platform == "win32", strict=True, reason="qa: UNC path makes Windows contact a server"
-)
 def test_safe_join_never_touches_the_network_for_unc_paths(tmp_path: Path):
     for unc in ("\\\\srv\\share", "\\\\192.0.2.1\\x\\y", "//srv/share/x"):
         start = time.perf_counter()

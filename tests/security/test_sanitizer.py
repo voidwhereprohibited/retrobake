@@ -73,3 +73,16 @@ def test_safe_join(tmp_path):
     for bad in (("..", "x"), ("/etc/passwd",), ("a", "../../x")):
         with pytest.raises(SandboxError):
             safe_join(tmp_path, *bad)
+
+
+@pytest.mark.parametrize(
+    "bad", ["a\x00b", "a\ud800b", "\\\\srv\\share", "//srv/share", "C:\\x", "C:x", "x" * 2000]
+)
+def test_safe_join_rejects_bad_parts_cleanly(tmp_path, bad):
+    with pytest.raises(SandboxError):
+        safe_join(tmp_path, bad)
+
+
+def test_clean_text_is_idempotent_with_stacked_marks():
+    once = sanitize("description", "Mar1o\u0301\u0301\u0301x")
+    assert sanitize("description", once) == once
