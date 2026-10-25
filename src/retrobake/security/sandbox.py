@@ -87,6 +87,7 @@ class BuildWorkspace:
 
     def cleanup(self) -> None:
         if self.root and self.root.exists():
+
             def _retry(func, path, _exc):  # read-only files on Windows
                 os.chmod(path, stat.S_IWRITE)
                 func(path)
@@ -263,9 +264,17 @@ class _WinJob:
         from ctypes import wintypes
 
         class IoCounters(ctypes.Structure):
-            _fields_ = [(n, ctypes.c_ulonglong) for n in (
-                "ReadOperationCount", "WriteOperationCount", "OtherOperationCount",
-                "ReadTransferCount", "WriteTransferCount", "OtherTransferCount")]
+            _fields_ = [
+                (n, ctypes.c_ulonglong)
+                for n in (
+                    "ReadOperationCount",
+                    "WriteOperationCount",
+                    "OtherOperationCount",
+                    "ReadTransferCount",
+                    "WriteTransferCount",
+                    "OtherTransferCount",
+                )
+            ]
 
         class Basic(ctypes.Structure):
             _fields_ = [

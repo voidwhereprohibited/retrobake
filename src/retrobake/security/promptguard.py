@@ -62,5 +62,10 @@ def check_prompt(prompt: str) -> str:
     return prompt.strip()
 
 
-__all__ = ["MAX_PROMPT_CHARS", "NEUTRAL", "POLLINATIONS_REQUIRED_PARAMS", "check_prompt",
-           "quote_user_text"]
+__all__ = [
+    "MAX_PROMPT_CHARS",
+    "NEUTRAL",
+    "POLLINATIONS_REQUIRED_PARAMS",
+    "check_prompt",
+    "quote_user_text",
+]
