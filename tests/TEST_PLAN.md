@@ -10,7 +10,7 @@ Never on Roger's own PC.
 | Unit | `tests/<area>/` (pytest, every push) | each module's API and edge cases |
 | Boot smoke | `tests/emulator/run_smoke.py` (CI job "Bake sample ROMs + emulator smoke test", Linux + Windows) | every ROM loads, draws, reaches gameplay, never crashes or hangs |
 | Bake matrix (M1+, task #9) | same job, `RETROBAKE_SMOKE_ROMS=<dir>` | every genre and every allowed mashup, on NES and SNES |
-| Fuzz | `tests/fuzz/` (planned) | junk / huge / hostile wizard text never crashes, hangs, or escapes the sandbox |
+| Fuzz | `tests/fuzz/test_fuzz_inputs.py` (every push, fixed seeds; `RETROBAKE_FUZZ_N` for longer runs) | junk / huge / hostile wizard text never crashes, hangs, or escapes the sandbox |
 | VM checks | clean Ubuntu + Windows VMs, release candidates only | real RetroArch launch (native, Flatpak, Snap, Steam), installer, signatures |
 
 ## Boot smoke test
@@ -49,3 +49,14 @@ within 180 frames. Reserve these 4 bytes; nothing else may use them.
 Filed on the board as `add-task <owner> "bug: ..." "repro steps"`, with the failing
 ROM's spec seed and the CI boot-report artifact link. qa signs off merges with
 `decide qa "merge <branch>" "approved"` only when CI is green on both OSes.
+
+## Fuzzing
+
+Hostile text (control, bidi, zero-width, zalgo, lone surrogates, 1 MB strings, spaced /
+leetspeak / fullwidth / Cyrillic look-alike franchise names, prompt-injection, shell, SQL,
+format-string and path tricks) is pushed through every input: `sanitize` for each field,
+`check_title`, `style_from_text`, both AI prompts, AI name and image validators, offline art,
+both builders' title paths, `safe_filename` and `safe_join`. Only the documented error may be
+raised, no call may take over 2 s, and outputs must stay inside their allowlists.
+Known bugs are strict `xfail` tests naming their board task: when the fix lands the test
+"unexpectedly passes" and CI fails until the marker is removed, so nothing is forgotten.
