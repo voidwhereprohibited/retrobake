@@ -1,8 +1,7 @@
 import os
-
-import pytest
 from pathlib import Path
 
+import pytest
 from nes_machine import Machine, screenshot, zp_symbols
 
 from retrobake import spec as gs

@@ -196,7 +196,8 @@ def screenshot(m: Machine, chr_rom: bytes, path: Path) -> None:
     )
 
     def chunk(kind: bytes, data: bytes) -> bytes:
-        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+        crc = struct.pack(">I", zlib.crc32(kind + data))
+        return struct.pack(">I", len(data)) + kind + data + crc
 
     png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 256, 240, 8, 2, 0, 0, 0))
     png += chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b"")
