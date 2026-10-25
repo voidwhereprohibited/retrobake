@@ -72,19 +72,29 @@ jobs:
   bake-and-boot:
     name: Bake sample ROMs + emulator smoke test
     needs: test
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - name: Run qa smoke test if present
-        shell: bash
-        run: |
-          if [ -f tests/emulator/run_smoke.py ]; then
-            python3 tests/emulator/run_smoke.py
-          else
-            echo "No emulator smoke test yet (qa task #9). Skipping."
-          fi
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      # qa: boots self-test ROMs (+ baked ROMs in RETROBAKE_SMOKE_ROMS once engines land)
+      # on the libretro cores players use: Mesen + FCEUmm (NES), Snes9x (SNES).
+      - name: Headless emulator boot test
+        run: python tests/emulator/run_smoke.py --fetch-cores
+      - name: Upload boot report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: boot-report-${{ matrix.os }}
+          path: tests/emulator/out/smoke-report.json
+          if-no-files-found: ignore
 
   package:
     name: Package (${{ matrix.os }})
