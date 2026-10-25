@@ -6,7 +6,8 @@ Rules for the ai-art prompt builder:
    instruction-like text + wrap in quotes).
 3. The finished prompt goes through ``check_prompt`` right before the request.
 4. Requests always carry ``POLLINATIONS_REQUIRED_PARAMS`` (safe mode on, private,
-   server-side prompt "enhance" off so their AI can't rewrite names back in).
+   server-side prompt "enhance" off so their AI can't rewrite names back in). On the keyed
+   gen.pollinations.ai host, ``safe`` must be ``POLLINATIONS_GEN_SAFE`` instead.
 5. Every response goes through outputs.validate_name / validate_image.
 """
 
@@ -23,6 +24,9 @@ POLLINATIONS_REQUIRED_PARAMS: dict[str, str] = {
     "private": "true",
     "enhance": "false",
 }
+# gen.pollinations.ai (keyed): safe=true only turns on privacy+secrets; the content filters
+# are named categories (verified against gen.pollinations.ai/openapi.json, 2026-10-25).
+POLLINATIONS_GEN_SAFE = "true,sexual,violence"
 MAX_PROMPT_CHARS = 900
 
 # Phrases that try to steer the AI instead of describing the game.

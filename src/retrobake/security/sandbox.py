@@ -33,6 +33,7 @@ from .sanitizer import safe_join
 
 _IS_WIN = sys.platform == "win32"
 _DEAD_PROXY = "http://127.0.0.1:9"
+_CREATE_SUSPENDED = 0x00000004
 
 
 @dataclass(frozen=True)
@@ -82,18 +83,37 @@ class BuildWorkspace:
         os.chmod(self.root, 0o700)
         return self
 
-    def __exit__(self, *exc: object) -> None:
-        self.cleanup()
+    def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
+        try:
+            self.cleanup()
+        except SandboxError:
+            if exc_type is None:
+                raise
+            # Keep the original error (e.g. a timeout); a leftover temp folder is harmless.
 
-    def cleanup(self) -> None:
-        if self.root and self.root.exists():
+    def cleanup(self, attempts: int = 10) -> None:
+        """Delete the workspace. On Windows a just-killed tool can hold files open for a
+        moment (WinError 32), so retry with short sleeps before giving up."""
+        root, last = self.root, None
+        if root is None:
+            return
 
-            def _retry(func, path, _exc):  # read-only files on Windows
-                os.chmod(path, stat.S_IWRITE)
-                func(path)
+        def _retry(func, path, _exc):  # read-only files on Windows
+            os.chmod(path, stat.S_IWRITE)
+            func(path)
 
-            shutil.rmtree(self.root, onexc=_retry)
+        for attempt in range(attempts):
+            if not root.exists():
+                break
+            try:
+                shutil.rmtree(root, onexc=_retry)
+                break
+            except OSError as exc:
+                last = exc
+                time.sleep(min(0.05 * 2**attempt, 1.0))
         self.root = None
+        if root.exists():
+            raise SandboxError(f"could not remove build folder {root}: {last}")
 
     def _need_root(self) -> Path:
         if self.root is None:
@@ -334,6 +354,39 @@ class _WinJob:
         finally:
             self._k32.CloseHandle(wintypes.HANDLE(proc))
 
+    def resume(self, proc: subprocess.Popen) -> None:
+        """Start a process created with CREATE_SUSPENDED (after it is in the job)."""
+        import ctypes
+        from ctypes import wintypes
+
+        ntdll = ctypes.WinDLL("ntdll")
+        status = ntdll.NtResumeProcess(wintypes.HANDLE(int(proc._handle)))
+        if status != 0:
+            raise SandboxError(f"could not start build process (0x{status & 0xFFFFFFFF:08x})")
+
+    def wait_empty(self, timeout: float = 5.0) -> bool:
+        """Wait until no process in the job is alive (so its files are released)."""
+        import ctypes
+        from ctypes import wintypes
+
+        class Accounting(ctypes.Structure):
+            _fields_ = [(n, ctypes.c_int64) for n in ("U", "K", "PU", "PK")] + [
+                (n, wintypes.DWORD) for n in ("Faults", "Total", "Active", "Terminated")
+            ]
+
+        info = Accounting()
+        deadline = time.monotonic() + timeout
+        while self.handle:
+            ok = self._k32.QueryInformationJobObject(
+                wintypes.HANDLE(self.handle), 1, ctypes.byref(info), ctypes.sizeof(info), None
+            )
+            if not ok or info.Active == 0:
+                return bool(ok)
+            if time.monotonic() > deadline:
+                return False
+            time.sleep(0.05)
+        return True
+
     def kill(self) -> None:
         from ctypes import wintypes
 
@@ -393,7 +446,10 @@ def run_build(
     kwargs: dict = {}
     job: _WinJob | None = None
     if _IS_WIN:
-        kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP
+        # Suspended until it is inside the job, so it can't start children outside it.
+        kwargs["creationflags"] = (
+            subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP | _CREATE_SUSPENDED
+        )
         job = _WinJob(limits)
     else:
         kwargs["start_new_session"] = True
@@ -419,6 +475,7 @@ def run_build(
         try:
             if job is not None:
                 job.assign(proc.pid)
+                job.resume(proc)
             elif not rlim:
                 _post_spawn_rlimits(proc.pid, limits)
             try:
@@ -434,7 +491,9 @@ def run_build(
             raise
         finally:
             if job is not None:
-                job.close()  # kills anything the tool left running
+                job.kill()  # nothing the tool started may outlive the build
+                job.wait_empty()
+                job.close()
             elif proc.returncode is not None:
                 try:
                     os.killpg(proc.pid, signal.SIGKILL)
