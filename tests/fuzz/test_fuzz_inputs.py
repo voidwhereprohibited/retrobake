@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import os
 import random
+import sys
 import time
 import unicodedata
 from pathlib import Path
@@ -310,8 +311,9 @@ def test_safe_join_never_escapes_or_crashes(tmp_path: Path):
     base.mkdir()
     resolved = base.resolve()
     for text in corpus(seed=19, n=N // 3):
-        # NUL and Windows over-long paths raise raw ValueError: board task #29.
-        text = text.replace("\x00", "")[:200]
+        # NUL, lone surrogates, over-long and UNC paths are tracked in the tests below.
+        text = "".join(ch for ch in text[:200] if ch != "\x00" and not 0xD800 <= ord(ch) <= 0xDFFF)
+        text = text.replace("\\\\", "\\")
         for parts in ((text,), ("sub", text), (text, "x.nes")):
             try:
                 target = timed(safe_join, base, *parts)
@@ -320,7 +322,21 @@ def test_safe_join_never_escapes_or_crashes(tmp_path: Path):
             assert target == resolved or resolved in target.parents
 
 
-@pytest.mark.xfail(strict=True, reason="board task #29 (security): NUL byte gives raw ValueError")
-def test_safe_join_rejects_nul_cleanly(tmp_path: Path):
+@pytest.mark.xfail(strict=True, reason="board task #29 (security): raw ValueError/UnicodeError")
+@pytest.mark.parametrize("bad", ["a\x00b", "a\ud800b"], ids=["nul", "surrogate"])
+def test_safe_join_rejects_unencodable_cleanly(tmp_path: Path, bad):
     with pytest.raises(SandboxError):
-        safe_join(tmp_path, "a\x00b")
+        safe_join(tmp_path, bad)
+
+
+@pytest.mark.xfail(
+    sys.platform == "win32", strict=True, reason="qa: UNC path makes Windows contact a server"
+)
+def test_safe_join_never_touches_the_network_for_unc_paths(tmp_path: Path):
+    for unc in ("\\\\srv\\share", "\\\\192.0.2.1\\x\\y", "//srv/share/x"):
+        start = time.perf_counter()
+        try:
+            safe_join(tmp_path, unc)
+        except SandboxError:
+            pass
+        assert time.perf_counter() - start < 0.5, unc
