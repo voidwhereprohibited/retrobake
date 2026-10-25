@@ -23,3 +23,5 @@ coordination/logs/
 
 # qa: libretro cores downloaded for boot tests
 tests/emulator/.cores/
+# bundled toolchains are built by tools/ scripts, never committed
+toolchains/
