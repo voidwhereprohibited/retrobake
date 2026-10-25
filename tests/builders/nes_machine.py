@@ -134,3 +134,71 @@ def zp_symbols(main_s: Path) -> dict[str, int]:
         out[name] = addr
         addr += int(size)
     return out
+
+
+# ---------------------------------------------------------------- screenshots (review aid)
+
+_NES_RGB = bytes.fromhex(
+    "757575271B8F0000AB47009F8F0077AB0013A700007F0B00432F00004700005100003F171B3F5F000000000000000000"
+    "BCBCBC0073EF233BEF8300F3BF00BFE7005BDB2B00CB4F0F8B7300009700"
+    "00AB0000933B00838B000000000000000000"
+    "FFFFFF3FBFFF5F97FFA78BFDF77BFFFF77B7FF7763FF9B3BF3BF3F83D3134FDF4B58F89800EBDB757575000000000000"
+    "FFFFFFABE7FFC7D7FFD7CBFFFFC7FFFFC7DBFFBFB3FFDBABFFE7A3E3FFA3ABF3BFB3FFCF9FFFF3BCBCBC000000000000"
+)
+
+
+def _pixel(chr_rom: bytes, table: int, tile: int, x: int, y: int) -> int:
+    base = table * 4096 + tile * 16
+    lo = chr_rom[base + y] >> (7 - x) & 1
+    hi = chr_rom[base + 8 + y] >> (7 - x) & 1
+    return lo | hi << 1
+
+
+def screenshot(m: Machine, chr_rom: bytes, path: Path) -> None:
+    """Render the current background + sprites (approximate) to a PNG."""
+    import struct
+    import zlib
+
+    pal = m.vram[0x3F00:0x3F20]
+    bg_table = (m.ppuctrl >> 4) & 1
+    spr_table = (m.ppuctrl >> 3) & 1
+    sx = m.scroll_x + (m.ppuctrl & 1) * 256
+    img = [[pal[0]] * 256 for _ in range(240)]
+    if m.ppumask & 0x08:
+        for y in range(240):
+            row = img[y]
+            for x in range(256):
+                wx = (sx + x) % 512
+                nt = 0x2000 + (wx // 256) * 0x400
+                cx, cy = (wx % 256) // 8, y // 8
+                tile = m.vram[nt + cy * 32 + cx]
+                attr = m.vram[nt + 0x3C0 + (cy // 4) * 8 + cx // 4]
+                p = attr >> (((cy // 2) % 2) * 4 + ((cx // 2) % 2) * 2) & 3
+                c = _pixel(chr_rom, bg_table, tile, wx % 8, y % 8)
+                if c:
+                    row[x] = pal[p * 4 + c]
+    if m.ppumask & 0x10:
+        for i in range(252, -4, -4):
+            sy, tile, attr, sxp = m.oam[i : i + 4]
+            if sy >= 0xEF:
+                continue
+            for py in range(8):
+                for px in range(8):
+                    tx = 7 - px if attr & 0x40 else px
+                    ty = 7 - py if attr & 0x80 else py
+                    c = _pixel(chr_rom, spr_table, tile, tx, ty)
+                    X, Y = sxp + px, sy + 1 + py
+                    if c and X < 256 and Y < 240:
+                        img[Y][X] = pal[16 + (attr & 3) * 4 + c]
+    raw = b"".join(
+        b"\x00" + b"".join(_NES_RGB[(v & 0x3F) * 3 : (v & 0x3F) * 3 + 3] for v in row)
+        for row in img
+    )
+
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+
+    png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 256, 240, 8, 2, 0, 0, 0))
+    png += chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b"")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(png)
