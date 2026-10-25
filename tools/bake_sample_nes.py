@@ -20,6 +20,7 @@ def main(argv: list[str]) -> int:
     except nes.NesBuildError as exc:
         print(f"bake failed: {exc.message}\n{exc.detail}", file=sys.stderr)
         return 1
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_bytes(result.rom)
     print(f"wrote {out} ({len(result.rom)} bytes, network isolated: {result.network_isolated})")
     return 0

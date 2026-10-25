@@ -23,6 +23,9 @@ class Machine:
         self.latch_hi = True
         self.vaddr = 0
         self.ppuctrl = self.ppumask = 0
+        self.buttons = 0  # bit7 A, 6 B, 5 Select, 4 Start, 3 Up, 2 Down, 1 Left, 0 Right
+        self.shift = 0
+        self.frames = 0
         self.pc = self.read16(0xFFFC)
 
     # -- memory
@@ -34,6 +37,10 @@ class Machine:
             self.vblank_toggle = not self.vblank_toggle
             self.latch_hi = True
             return 0x80 if self.vblank_toggle else 0x00
+        if addr == 0x4016:  # serial pad: A first, 1s after the 8th read
+            bit = (self.shift >> 7) & 1
+            self.shift = ((self.shift << 1) | 1) & 0xFF
+            return bit
         if addr >= 0xC000:
             return self.prg[addr - 0xC000]
         return 0
@@ -60,6 +67,23 @@ class Machine:
             self.vaddr += 32 if self.ppuctrl & 4 else 1
         elif addr == 0x2005:
             self.latch_hi = not self.latch_hi
+        elif addr == 0x4016 and val & 1:
+            self.shift = self.buttons
+
+    def _push(self, v: int) -> None:
+        self.ram[0x100 + self.sp] = v & 0xFF
+        self.sp = (self.sp - 1) & 0xFF
+
+    def _pull(self) -> int:
+        self.sp = (self.sp + 1) & 0xFF
+        return self.ram[0x100 + self.sp]
+
+    def nmi(self) -> None:
+        self._push(self.pc >> 8)
+        self._push(self.pc)
+        self._push(0x20 | self.n << 7 | self.z << 1 | int(self.c))
+        self.pc = self.read16(0xFFFA)
+        self.frames += 1
 
     # -- helpers
     def _nz(self, v: int) -> int:
@@ -112,6 +136,30 @@ class Machine:
             self.write((self._imm() + self.x) & 0xFF, self.a)
         elif op == 0x9D:
             self.write(self._abs() + self.x, self.a)
+        elif op == 0xA5:
+            self.a = self._nz(self.read(self._imm()))
+        elif op == 0xC5 or op == 0xC9:
+            v = self.read(self._imm()) if op == 0xC5 else self._imm()
+            self.c = self.a >= v
+            self._nz(self.a - v)
+        elif op == 0x29:
+            self.a = self._nz(self.a & self._imm())
+        elif op == 0x4A:
+            self.c = bool(self.a & 1)
+            self.a = self._nz(self.a >> 1)
+        elif op == 0x26:
+            zp = self._imm()
+            v = (self.read(zp) << 1) | int(self.c)
+            self.c = v > 0xFF
+            self.write(zp, self._nz(v))
+        elif op == 0x48:
+            self._push(self.a)
+        elif op == 0x68:
+            self.a = self._nz(self._pull())
+        elif op == 0x40:  # RTI
+            p = self._pull()
+            self.n, self.z, self.c = bool(p & 0x80), bool(p & 2), bool(p & 1)
+            self.pc = self._pull() | self._pull() << 8
         elif op == 0x2C:
             v = self.read(self._abs())
             self.n, self.z = bool(v & 0x80), (v & self.a) == 0
@@ -160,11 +208,18 @@ class Machine:
         else:
             raise Unsupported(f"opcode ${op:02X} at ${self.pc - 1:04X}")
 
-    def run_until_idle(self, max_steps: int = 2_000_000) -> int:
-        """Run until the CPU sits in a ``jmp *`` loop. Returns steps taken."""
-        for i in range(max_steps):
-            here = self.pc
-            if self.read(here) == 0x4C and self.read16(here + 1) == here:
-                return i
+    def run_frames(self, frames: int, steps_per_frame: int = 3000, max_boot: int = 500_000):
+        """Boot (until NMI is switched on), then run ``frames`` NMI-driven frames."""
+        for _ in range(max_boot):
+            if self.ppuctrl & 0x80:
+                break
             self.step()
-        raise TimeoutError("program never reached its idle loop")
+        else:
+            raise TimeoutError("program never switched on its frame interrupt")
+        for _ in range(frames):
+            self.nmi()
+            for _ in range(steps_per_frame):
+                self.step()
+
+    def ram_sig(self) -> bytes:
+        return bytes(self.ram[0x7FC:0x800])
