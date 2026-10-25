@@ -163,3 +163,76 @@ jobs:
           else
             echo "Packaging lands in M6 (PyInstaller + Inno Setup / AppImage). Skipping."
           fi
+
+  # snes-engine: bundled SNES toolchain (wla-65816 + wlalink at PVSnesLib 4.6.0's pin).
+  snes-toolchain:
+    name: Build bundled SNES toolchain (wla-dx)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - id: pin
+        run: echo "commit=$(grep -oP 'WLA_COMMIT="\K[0-9a-f]+' tools/build_snes_toolchain.sh)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        id: cache
+        with:
+          path: toolchains/pvsneslib
+          key: wladx-${{ steps.pin.outputs.commit }}-${{ hashFiles('tools/build_snes_toolchain.sh') }}
+      - name: Build wla-65816/wlalink for Linux and Windows
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends gcc-mingw-w64-x86-64 cmake
+          bash tools/build_snes_toolchain.sh toolchains/pvsneslib
+      - uses: actions/upload-artifact@v7
+        with:
+          name: snes-toolchain
+          path: toolchains/pvsneslib
+          retention-days: 7
+
+  snes-bake:
+    name: SNES bake + Snes9x boot (${{ matrix.os }})
+    needs: snes-toolchain
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/download-artifact@v8
+        with:
+          name: snes-toolchain
+          path: toolchains/pvsneslib
+      - name: Point tests at the bundled SNES toolchain
+        shell: bash
+        run: |
+          plat=linux; [ "$RUNNER_OS" = Windows ] && plat=windows
+          chmod +x toolchains/pvsneslib/$plat/bin/* || true
+          echo "RETROBAKE_WLA_DIR=$GITHUB_WORKSPACE/toolchains/pvsneslib/$plat/bin" >> "$GITHUB_ENV"
+          echo "RETROBAKE_REQUIRE_WLA=1" >> "$GITHUB_ENV"
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m pytest tests/builders/test_snes.py -v
+      - run: python tools/bake_sample_snes.py baked/sample-hello.sfc
+      - name: Get qa's emulator smoke test (from agent/qa until it is merged)
+        shell: bash
+        run: |
+          if [ ! -f tests/emulator/run_smoke.py ]; then
+            git fetch -q --depth 1 https://github.com/${{ github.repository }}.git agent/qa
+            git checkout FETCH_HEAD -- tests/emulator
+          fi
+      - name: Boot baked SNES ROM on Snes9x (signature, Start -> gameplay)
+        run: python tests/emulator/run_smoke.py --fetch-cores --roms baked --report baked/smoke-report.json
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: sample-snes-rom-${{ matrix.os }}
+          path: baked/
+          retention-days: 14
