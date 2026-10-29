@@ -211,7 +211,7 @@ jobs:
           echo "RETROBAKE_REQUIRE_WLA=1" >> "$GITHUB_ENV"
       - run: python -m pip install -e ".[dev]"
       - run: python -m pytest tests/builders/test_snes.py -v
-      - run: python tools/bake_sample_snes.py baked/sample-hello.sfc
+      - run: python tools/bake_sample_snes.py baked/sample-platformer.sfc
       - name: Get qa's emulator smoke test (from agent/qa until it is merged)
         shell: bash
         run: |
@@ -221,6 +221,8 @@ jobs:
           fi
       - name: Boot baked SNES ROM on Snes9x (signature, Start -> gameplay)
         run: python tests/emulator/run_smoke.py --fetch-cores --roms baked --report baked/smoke-report.json
+      - name: Play the SNES platformer on Snes9x (move, jump, 1500 frames of scripted play)
+        run: python tools/snes_play_test.py --cores tests/emulator/.cores --out baked/play
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -258,6 +260,8 @@ jobs:
           echo "RETROBAKE_REQUIRE_CC65=1" >> "$GITHUB_ENV"
       - run: python -m pip install -e ".[dev]"
       - run: python -m pytest tests/builders/test_nes.py -v
+        env:
+          RETROBAKE_SHOTS: baked/shots
       - run: python tools/bake_sample_nes.py baked/sample-hello.nes
       - name: Boot baked NES ROM on Mesen + FCEUmm (signature, Start -> gameplay)
         run: python tests/emulator/run_smoke.py --fetch-cores --roms baked --report baked/smoke-report.json
