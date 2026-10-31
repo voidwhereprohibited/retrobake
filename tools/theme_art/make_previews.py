@@ -16,7 +16,7 @@ Usage: python3 tools/theme_art/make_previews.py [style-id ...]
 """
 import io, json, os, subprocess, sys, time, urllib.parse, urllib.request
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont, ImageEnhance
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
 ROOT = Path(__file__).resolve().parents[2]
 STYLES = json.loads((ROOT / "themes/styles.json").read_text())
@@ -80,22 +80,47 @@ def cover(im, w, h):
 
 
 def cut_icons(sheet, n):
-    """Split a 3x2 magenta-keyed sheet into n 256x256 RGBA icons."""
-    sheet = sheet.convert("RGBA")
-    px = sheet.load()
-    for y in range(sheet.height):
-        for x in range(sheet.width):
-            r, g, b, a = px[x, y]
-            if r > 170 and b > 170 and g < 110:  # magenta key
-                px[x, y] = (0, 0, 0, 0)
+    """Split a 3x2 sheet into n 256x256 RGBA icons.
+
+    The model's "magenta" key drifts (often hot pink ~(230,37,146)), so each cell's
+    background colour is sampled from its border and removed by flood fill from the
+    edges, plus a tight global pass for enclosed holes (e.g. inside a gear)."""
+    sheet = sheet.convert("RGB")
     icons, cw, ch = [], sheet.width // 3, sheet.height // 2
     for i in range(n):
         cell = sheet.crop(((i % 3) * cw, (i // 3) * ch, (i % 3 + 1) * cw, (i // 3 + 1) * ch))
-        bb = cell.getbbox() or (0, 0, cw, ch)
-        cell = cell.crop(bb)
-        cell.thumbnail((232, 232), Image.LANCZOS)
+        w, h = cell.size
+        border = [cell.getpixel((x, y)) for x in range(0, w, 8) for y in (0, 1, h - 2, h - 1)] + \
+                 [cell.getpixel((x, y)) for y in range(0, h, 8) for x in (0, 1, w - 2, w - 1)]
+        border.sort(key=sum)
+        bg = border[len(border) // 2]
+        mask = Image.new("L", (w, h), 0)
+        px, mp = cell.load(), mask.load()
+
+        def near(c, t):
+            return (c[0] - bg[0]) ** 2 + (c[1] - bg[1]) ** 2 + (c[2] - bg[2]) ** 2 < t * t
+        stack = [(x, y) for x in range(w) for y in (0, h - 1)] + [(x, y) for y in range(h) for x in (0, w - 1)]
+        while stack:
+            x, y = stack.pop()
+            if mp[x, y] or not near(px[x, y], 95):
+                continue
+            mp[x, y] = 255
+            if x > 0: stack.append((x - 1, y))
+            if x < w - 1: stack.append((x + 1, y))
+            if y > 0: stack.append((x, y - 1))
+            if y < h - 1: stack.append((x, y + 1))
+        for y in range(h):
+            for x in range(w):
+                if not mp[x, y] and near(px[x, y], 40):
+                    mp[x, y] = 255
+        mask = mask.filter(ImageFilter.MaxFilter(3))  # 1px choke: no pink fringe on the outline
+        rgba = cell.convert("RGBA")
+        rgba.putalpha(Image.eval(mask, lambda v: 255 - v))
+        bb = rgba.getbbox() or (0, 0, w, h)
+        rgba = rgba.crop(bb)
+        rgba.thumbnail((232, 232), Image.LANCZOS)
         ic = Image.new("RGBA", (256, 256))
-        ic.paste(cell, ((256 - cell.width) // 2, (256 - cell.height) // 2), cell)
+        ic.paste(rgba, ((256 - rgba.width) // 2, (256 - rgba.height) // 2), rgba)
         icons.append(ic)
     return icons
 
