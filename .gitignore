@@ -25,3 +25,7 @@ coordination/logs/
 tests/emulator/.cores/
 # bundled toolchains are built by tools/ scripts, never committed
 toolchains/
+
+# theme-art: local art tools (Real-ESRGAN), never committed
+.tools/
+themes/_work/
