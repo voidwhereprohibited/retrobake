@@ -33,6 +33,8 @@ def cover(im, w, h):
 
 
 def wallpaper(src, out):
+    if (out / "master_3840x2160.png").exists():  # cached: upscaling is the slow part
+        return Image.open(out / "master_3840x2160.png").convert("RGB")
     im = Image.open(src).convert("RGB")
     if im.width < 3840 or im.height < 2160:
         with tempfile.TemporaryDirectory() as t:
@@ -82,8 +84,13 @@ def style_icon(ic, fx):
     if "glow" in fx:
         k = fx.get("glow_strength", 1.0)
         gl = Image.new("RGBA", ic.size, rgb(fx["glow"]) + (0,))
-        gl.putalpha(a.filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.GaussianBlur(9))
-                    .point(lambda v: min(255, int(v * 1.6 * k))))
+        halo = a.filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.GaussianBlur(9)) \
+                .point(lambda v: min(255, int(v * 1.6 * k)))
+        # glow only outside the icon silhouette, so holes and inner detail stay crisp
+        outside = a.point(lambda v: 255 if v > 24 else 0)
+        ImageDraw.floodfill(outside, (0, 0), 128)
+        outside = outside.point(lambda v: 255 if v == 128 else 0)
+        gl.putalpha(ImageChops.multiply(halo, outside))
         base.alpha_composite(gl)
     base.alpha_composite(ic)
     return base
@@ -91,13 +98,13 @@ def style_icon(ic, fx):
 
 def icons(cfg, root, t, out):
     out.mkdir(parents=True, exist_ok=True)
-    prim, fb = root / t["pack"] / "png", root / t["fallback"] / "png"
+    prim, fb = root / t["pack"], root / t["fallback"]
     names = {p.name for p in fb.glob("*.png")} | {p.name for p in prim.glob("*.png")}
     done = {}
     for n in sorted(names):
         src = prim / n if (prim / n).exists() else fb / n
         im = style_icon(Image.open(src), t["fx"])
-        im.save(out / n, optimize=True)
+        im.save(out / n)
         done[n[:-4]] = im
     return done
 
