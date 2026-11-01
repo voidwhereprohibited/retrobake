@@ -27,7 +27,7 @@ NAMES = {
     "Magnavox - Odyssey": "Odyssey", "Magnavox - Odyssey2": "Odyssey 2", "Mattel - Intellivision": "Intellivision",
     "Philips - CD-i": "CD-i", "Sharp - X68000": "X68000", "Sinclair - ZX Spectrum": "ZX Spectrum",
     "The 3DO Company - 3DO": "3DO", "Fujitsu - FM Towns Marty": "FM Towns", "00 - Generic Background": "",
-    "Import Content": "Import", "Main Menu": "Main Menu",
+    "Import Content": "Import", "Main Menu": "Main Menu", "Contentless Cores": "Cores",
 }
 
 
