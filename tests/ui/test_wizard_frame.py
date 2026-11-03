@@ -15,14 +15,18 @@ def test_steps_in_plan_order(window):
     assert window.next_btn.text() == "Let's start"
 
 
-def test_next_and_back_walk_every_step(window):
-    for i in range(1, len(EXPECTED)):
+def test_next_and_back_walk_early_steps(window):
+    for i in range(1, 5):  # welcome .. questions need nothing but defaults
         window.next_btn.click()
         assert window.index == i
-    assert not window.next_btn.isVisible()  # finish screen has its own buttons
-    for i in range(len(EXPECTED) - 2, -1, -1):
+    for i in range(3, -1, -1):
         window.back_btn.click()
         assert window.index == i
+
+
+def test_finish_screen_has_its_own_buttons(window):
+    window.go_to(len(EXPECTED) - 1)
+    assert not window.next_btn.isVisible()
 
 
 def test_keyboard_enter_and_shortcuts(window, app):

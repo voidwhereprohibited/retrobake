@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QThread, Qt, Signal
 from PySide6.QtGui import QFont, QKeyEvent, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
@@ -99,6 +99,10 @@ class WizardStep(QWidget):
         """Widget that should get keyboard focus when the step opens."""
         return None
 
+    def can_leave(self) -> bool:
+        """False while the step is busy (e.g. baking) and Back must wait."""
+        return True
+
     # --- used by the frame ---------------------------------------------
     def apply_fonts(self, base: QFont) -> None:
         tf = QFont(base)
@@ -149,6 +153,8 @@ class WizardWindow(QMainWindow):
         self.stack = QStackedWidget()
         for s in steps:
             s.changed.connect(self._refresh_buttons)
+            if hasattr(s, "restart_requested"):
+                s.restart_requested.connect(self.restart)
             self.stack.addWidget(s)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -245,13 +251,28 @@ class WizardWindow(QMainWindow):
             return
         super().keyPressEvent(event)
 
+    def closeEvent(self, event) -> None:  # noqa: N802 (Qt name)
+        for t in self.findChildren(QThread):  # never close with a bake or AI call running
+            t.wait(10000)
+        super().closeEvent(event)
+
+    def restart(self) -> None:
+        """Start a fresh game from the welcome screen."""
+        self.spec.clear()
+        for s in self.steps:
+            reset = getattr(s, "reset", None)
+            if reset:
+                reset()
+        self.go_to(1)
+
     def go_back(self) -> None:
-        if self.back_btn.isVisible() and self.index > 0:
+        if self.back_btn.isVisible() and self.index > 0 and self.current.can_leave():
             self.go_to(self.index - 1)
 
     def _refresh_buttons(self) -> None:
         step = self.current
         self.back_btn.setVisible(step.show_back and self.index > 0)
+        self.back_btn.setEnabled(step.can_leave())
         last = self.index == len(self.steps) - 1
         self.next_btn.setVisible(step.show_next and not last)
         label = step.next_label

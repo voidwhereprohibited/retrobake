@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+os.environ["RETROBAKE_OFFLINE"] = "1"  # tests never touch the network
 SRC = Path(__file__).resolve().parents[2] / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
