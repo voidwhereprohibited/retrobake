@@ -88,8 +88,12 @@ def walk_to_cover(app, win, description="a fox in glowing caves"):
 
 
 def test_full_flow_bakes_and_finishes(app, make, tmp_path):
-    win, session = make(saves={"Save your game": str(tmp_path / "out.nes"),
-                               "Save the cover": str(tmp_path / "cover.png")})
+    win, session = make(
+        saves={
+            "Save your game": str(tmp_path / "out.nes"),
+            "Save the cover": str(tmp_path / "cover.png"),
+        }
+    )
     walk_to_cover(app, win)
     art = step(win, "art_name")
     assert art.names.count() >= 1 and art.name_edit.text()  # first idea picked

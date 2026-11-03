@@ -80,7 +80,7 @@ class DescribeStep(WizardStep):
         self.error.setAccessibleName("Problem with your description")
         _label(
             layout,
-            "Tip: you can say things like \"a spooky castle with a boss at the end\". "
+            'Tip: you can say things like "a spooky castle with a boss at the end". '
             "Skipping this is fine too.",
             "hint",
         )
@@ -207,7 +207,11 @@ class QuestionsStep(WizardStep):
 
     def _show_fixes(self) -> None:
         msgs = [f.message for f in self.fixes]
-        self.fix_label.setText("We adjusted a few things so they work together:\n- " + "\n- ".join(msgs) if msgs else "")
+        self.fix_label.setText(
+            "We adjusted a few things so they work together:\n- " + "\n- ".join(msgs)
+            if msgs
+            else ""
+        )
         self.fix_label.setVisible(bool(msgs))
 
     def _add_question(self, q: dict[str, Any]) -> None:
@@ -342,7 +346,9 @@ class ArtNameStep(WizardStep):
         self.more.setAutoDefault(False)
         self.more.clicked.connect(self._more)
         layout.addWidget(self.more)
-        self.online = QCheckBox("Use online AI for pictures and names (otherwise made on this computer)")
+        self.online = QCheckBox(
+            "Use online AI for pictures and names (otherwise made on this computer)"
+        )
         self.online.setChecked(self.session.ai.settings.online)
         self.online.toggled.connect(self._set_online)
         layout.addWidget(self.online)
@@ -372,7 +378,9 @@ class ArtNameStep(WizardStep):
         self.busy = True
         self.status.setText("Drawing your cover and thinking up names…")
         self.more.setEnabled(False)
-        self.task = Task(lambda: (ai.make_art(spec, variant=v), ai.suggest_names(spec, 6, variant=v)), self)
+        self.task = Task(
+            lambda: (ai.make_art(spec, variant=v), ai.suggest_names(spec, 6, variant=v)), self
+        )
         self.task.done.connect(self._loaded)
         self.task.finished.connect(self.task.deleteLater)
         self.task.start()
@@ -498,9 +506,14 @@ class BakeStep(WizardStep):
         if err is not None:
             self.bar.setRange(0, 1)
             self.bar.setValue(0)
-            text = error_text(err) if hasattr(err, "message") else (
-                "We couldn't bake this game: " + str(err) if isinstance(err, ValueError)
-                else "Something went wrong while baking. Please try again."
+            text = (
+                error_text(err)
+                if hasattr(err, "message")
+                else (
+                    "We couldn't bake this game: " + str(err)
+                    if isinstance(err, ValueError)
+                    else "Something went wrong while baking. Please try again."
+                )
             )
             self.status.setText(text + "\nYou can go Back to change something, or try again.")
             self.retry.setVisible(True)
@@ -514,7 +527,7 @@ class BakeStep(WizardStep):
         self.bar.setRange(0, 1)
         self.bar.setValue(1)
         self.retry.setVisible(False)
-        self.status.setText(f"Done! \"{self.spec.get('title', 'Your game')}\" is baked and ready.")
+        self.status.setText(f'Done! "{self.spec.get("title", "Your game")}" is baked and ready.')
 
     def is_complete(self) -> bool:
         return not self.busy and self.session.rom_path is not None
@@ -632,7 +645,9 @@ class FinishStep(WizardStep):
     def save_rom(self) -> None:
         rom = self.session.rom_path
         ext = rom.suffix if rom else ".nes"
-        dest = self.session.ask_save("Save your game", rom.name if rom else "game" + ext, f"Game (*{ext})")
+        dest = self.session.ask_save(
+            "Save your game", rom.name if rom else "game" + ext, f"Game (*{ext})"
+        )
         if not dest:
             return
         dest_path = Path(dest)
@@ -669,10 +684,16 @@ class FinishStep(WizardStep):
         core_path, core = inst.find_core(self.system)
         try:
             retroarch.add_game(
-                inst, self.session.rom_path, self.title_text, core_path, core,
+                inst,
+                self.session.rom_path,
+                self.title_text,
+                core_path,
+                core,
                 self.session.cover_png,
             )
         except (retroarch.PlaylistError, OSError) as exc:
-            self.say(error_text(exc) if hasattr(exc, "message") else "We couldn't add it to RetroArch.")
+            self.say(
+                error_text(exc) if hasattr(exc, "message") else "We couldn't add it to RetroArch."
+            )
             return
-        self.say("Added! Look for \"RetroBake\" in RetroArch's playlists.")
+        self.say('Added! Look for "RetroBake" in RetroArch\'s playlists.')
