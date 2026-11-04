@@ -89,8 +89,11 @@ def _get(spec: dict[str, Any], *path: str) -> Any:
 
 
 def _slots(spec: dict[str, Any]) -> dict[str, str]:
-    genres = [g for g in (_get(spec, "genres") or []) if g in GENRE_WORDS][:2]
-    genre = " mixed with ".join(GENRE_WORDS[g] for g in genres) or GENRE_WORDS["platformer"]
+    # Exactly one genre per prompt: the game's own. Extra or unknown entries are ignored.
+    genres = _get(spec, "genres")
+    first = genres[0] if isinstance(genres, list) and genres else None
+    genre = GENRE_WORDS.get(first, "") if isinstance(first, str) else ""
+    genre = genre or GENRE_WORDS["platformer"]
     story = _get(spec, "description")
     hero_text = _get(spec, "hero", "description")
     return {
