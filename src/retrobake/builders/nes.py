@@ -121,7 +121,26 @@ def bake(
     cc65_dir: str | Path | None = None,
     limits: BuildLimits | None = None,
 ) -> NesRom:
-    """Bake ``spec`` into an iNES ROM. Raises NesBuildError with plain-English text."""
+    """Bake ``spec`` into an iNES ROM. Raises NesBuildError with plain-English text.
+
+    Side-view jumping games get the full platformer engine; anything else still gets the
+    "hello" title-screen engine until its own engine exists.
+    """
+    _check_spec(spec)
+    if spec["modules"].get("movement") == "side_jump":
+        from . import nes_platformer
+
+        return nes_platformer.bake(spec, cc65_dir=cc65_dir, limits=limits)
+    return bake_hello(spec, cc65_dir=cc65_dir, limits=limits)
+
+
+def bake_hello(
+    spec: dict[str, Any],
+    *,
+    cc65_dir: str | Path | None = None,
+    limits: BuildLimits | None = None,
+) -> NesRom:
+    """Bake ``spec`` with the "hello" engine: a title screen with music, no gameplay."""
     _check_spec(spec)
     title = clean_title(spec)
     tools = find_cc65(cc65_dir)
