@@ -29,3 +29,6 @@ toolchains/
 # theme-art: local art tools (Real-ESRGAN), never committed
 .tools/
 themes/_work/
+
+# theme art lives outside the repo
+/themes/
