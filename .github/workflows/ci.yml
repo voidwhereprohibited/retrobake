@@ -245,13 +245,6 @@ jobs:
       - run: python -m pip install -e ".[dev]"
       - run: python -m pytest tests/builders/test_snes.py -v
       - run: python tools/bake_sample_snes.py baked/sample-hello.sfc
-      - name: Get qa's emulator smoke test (from agent/qa until it is merged)
-        shell: bash
-        run: |
-          if [ ! -f tests/emulator/run_smoke.py ]; then
-            git fetch -q --depth 1 https://github.com/${{ github.repository }}.git agent/qa
-            git checkout FETCH_HEAD -- tests/emulator
-          fi
       - name: Cache the pinned libretro cores (re-verified by sha256 before every load)
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
