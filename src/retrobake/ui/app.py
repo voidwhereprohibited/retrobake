@@ -10,6 +10,7 @@ from PySide6.QtWidgets import QApplication
 
 from . import theme
 from .screens import default_steps
+from .session import Session
 from .wizard import WizardWindow
 
 
@@ -28,8 +29,8 @@ def create_app(argv: list[str] | None = None) -> QApplication:
     return app
 
 
-def create_window(app: QApplication) -> WizardWindow:
-    return WizardWindow(default_steps(), app)
+def create_window(app: QApplication, session: Session | None = None) -> WizardWindow:
+    return WizardWindow(default_steps(session), app)
 
 
 def main() -> int:

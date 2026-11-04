@@ -15,8 +15,14 @@ def test_steps_in_plan_order(window):
     assert window.next_btn.text() == "Let's start"
 
 
-def test_next_and_back_walk_every_step(window):
+def test_next_and_back_walk_every_step(window, wait_until):
     for i in range(1, len(EXPECTED)):
+        if window.current.key == "describe":
+            window.current.text.setPlainText("A fox runs through a forest.")
+        if window.current.key == "bake":
+            window.current.session.baker = lambda spec: object()
+            window.current.start()
+            assert wait_until(window.current.is_complete)
         window.next_btn.click()
         assert window.index == i
     assert not window.next_btn.isVisible()  # finish screen has its own buttons
@@ -122,15 +128,10 @@ def test_both_themes_apply(app):
     assert theme.apply_theme(app, dark=False) is theme.LIGHT
 
 
-def test_finish_step_has_four_actions():
+def test_finish_step_has_three_actions():
     steps = default_steps()
     finish = steps[-1]
-    assert [b.text() for b in finish.actions] == [
-        "Play now in RetroArch",
-        "Save game to…",
-        "Save cover art…",
-        "Add to RetroArch library",
-    ]
+    assert [b.text() for b in finish.actions] == ["Play in RetroArch", "Save ROM…", "Save cover…"]
     assert isinstance(finish.layout(), QVBoxLayout)
 
 

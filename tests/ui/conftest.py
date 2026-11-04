@@ -30,3 +30,19 @@ def window(app):
     win.close()
     win.deleteLater()
     app.processEvents()
+
+
+@pytest.fixture
+def wait_until():
+    return _wait_until
+
+
+def _wait_until(predicate, timeout_ms: int = 5000) -> bool:
+    """Process Qt events until ``predicate()`` is true or time runs out."""
+    from PySide6.QtTest import QTest
+
+    for _ in range(timeout_ms // 10):
+        if predicate():
+            return True
+        QTest.qWait(10)
+    return predicate()
