@@ -18,7 +18,13 @@ Usage:
   python3 coordination/board.py contracts
   python3 coordination/board.py export                       # write readable BOARD.md snapshot
 """
-import sqlite3, sys, os, datetime
+
+import datetime
+import os
+import sqlite3
+import subprocess
+import sys
+
 
 def _db_path():
     """One shared DB for every agent, even ones running in separate git worktrees."""
@@ -26,12 +32,17 @@ def _db_path():
         return os.environ["RETROBAKE_BOARD"]
     here = os.path.dirname(os.path.abspath(__file__))
     try:
-        import subprocess
-        common = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
-                                cwd=here, capture_output=True, text=True, check=True).stdout.strip()
+        common = subprocess.run(
+            ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+            cwd=here,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
         return os.path.join(os.path.dirname(common), "coordination", "retrobake.db")
     except Exception:
         return os.path.join(here, "retrobake.db")
+
 
 DB = _db_path()
 STATES = ("todo", "doing", "blocked", "done")
@@ -50,8 +61,10 @@ CREATE TABLE IF NOT EXISTS contracts(
   id INTEGER PRIMARY KEY, agent TEXT, name TEXT UNIQUE, spec TEXT, updated TEXT);
 """
 
+
 def now():
     return datetime.datetime.now().isoformat(timespec="seconds")
+
 
 def db():
     os.makedirs(os.path.dirname(DB), exist_ok=True)
@@ -61,13 +74,15 @@ def db():
     con.executescript(SCHEMA)
     return con
 
+
 def opt(args, flag):
     if flag in args:
         i = args.index(flag)
         val = args[i + 1] if i + 1 < len(args) else ""
-        del args[i:i + 2]
+        del args[i : i + 2]
         return val
     return None
+
 
 def show(rows, cols):
     for r in rows:
@@ -75,25 +90,36 @@ def show(rows, cols):
     if not rows:
         print("(none)")
 
-def main(argv):
+
+def main(argv):  # noqa: C901, PLR0912, PLR0915 - flat CLI dispatcher, one branch per command
     if not argv:
-        print(__doc__); return 1
+        print(__doc__)
+        return 1
     cmd, args = argv[0], argv[1:]
     con = db()
     if cmd == "init":
         print(f"Board ready at {DB}")
     elif cmd == "export":
         out = os.path.join(os.path.dirname(DB), "BOARD.md")
-        lines = ["# RetroBake agent board (snapshot)", "", "## Tasks", "| id | agent | state | title | note |", "|---|---|---|---|---|"]
+        lines = [
+            "# RetroBake agent board (snapshot)",
+            "",
+            "## Tasks",
+            "| id | agent | state | title | note |",
+            "|---|---|---|---|---|",
+        ]
         for r in con.execute("SELECT * FROM tasks ORDER BY id"):
-            lines.append(f"| {r['id']} | {r['agent']} | {r['state']} | {r['title']} | {r['note']} |")
+            lines.append(
+                f"| {r['id']} | {r['agent']} | {r['state']} | {r['title']} | {r['note']} |"
+            )
         lines += ["", "## Decisions", "| topic | decision | by |", "|---|---|---|"]
         for r in con.execute("SELECT * FROM decisions ORDER BY id"):
             lines.append(f"| {r['topic']} | {r['decision']} | {r['agent']} |")
         lines += ["", "## Contracts", "| name | owner | spec |", "|---|---|---|"]
         for r in con.execute("SELECT * FROM contracts ORDER BY name"):
             lines.append(f"| {r['name']} | {r['agent']} | {r['spec']} |")
-        open(out, "w").write("\n".join(lines) + "\n")
+        with open(out, "w") as f:
+            f.write("\n".join(lines) + "\n")
         print(f"exported {out}")
     elif cmd == "status":
         print("== Tasks by state ==")
@@ -101,41 +127,73 @@ def main(argv):
             n = con.execute("SELECT COUNT(*) FROM tasks WHERE state=?", (s,)).fetchone()[0]
             print(f"  {s}: {n}")
         print("== Open tasks ==")
-        show(con.execute("SELECT id,agent,state,title FROM tasks WHERE state!='done' ORDER BY id").fetchall(),
-             ("id", "agent", "state", "title"))
+        show(
+            con.execute(
+                "SELECT id,agent,state,title FROM tasks WHERE state!='done' ORDER BY id"
+            ).fetchall(),
+            ("id", "agent", "state", "title"),
+        )
         print("== Latest decisions ==")
-        show(con.execute("SELECT topic,decision,agent FROM decisions ORDER BY id DESC LIMIT 10").fetchall(),
-             ("topic", "decision", "agent"))
+        show(
+            con.execute(
+                "SELECT topic,decision,agent FROM decisions ORDER BY id DESC LIMIT 10"
+            ).fetchall(),
+            ("topic", "decision", "agent"),
+        )
         print("== Contracts ==")
-        show(con.execute("SELECT name,agent,spec FROM contracts ORDER BY name").fetchall(), ("name", "agent", "spec"))
+        show(
+            con.execute("SELECT name,agent,spec FROM contracts ORDER BY name").fetchall(),
+            ("name", "agent", "spec"),
+        )
     elif cmd == "tasks":
         agent, state = opt(args, "--agent"), opt(args, "--state")
         q, p = "SELECT * FROM tasks WHERE 1=1", []
-        if agent: q += " AND agent=?"; p.append(agent)
-        if state: q += " AND state=?"; p.append(state)
-        show(con.execute(q + " ORDER BY id", p).fetchall(), ("id", "agent", "state", "title", "depends", "note"))
+        if agent:
+            q += " AND agent=?"
+            p.append(agent)
+        if state:
+            q += " AND state=?"
+            p.append(state)
+        show(
+            con.execute(q + " ORDER BY id", p).fetchall(),
+            ("id", "agent", "state", "title", "depends", "note"),
+        )
     elif cmd == "add-task":
         dep = opt(args, "--depends") or ""
         agent, title = args[0], args[1]
-        details = args[2] if len(args) > 2 else ""
-        cur = con.execute("INSERT INTO tasks(agent,title,details,depends,created,updated) VALUES(?,?,?,?,?,?)",
-                          (agent, title, details, dep, now(), now()))
+        details = args[2] if len(args) > 2 else ""  # noqa: PLR2004 - optional 3rd arg
+        cur = con.execute(
+            "INSERT INTO tasks(agent,title,details,depends,created,updated) VALUES(?,?,?,?,?,?)",
+            (agent, title, details, dep, now(), now()),
+        )
         print(f"task {cur.lastrowid} -> {agent}")
     elif cmd == "claim":
-        con.execute("UPDATE tasks SET agent=?, state='doing', updated=? WHERE id=?", (args[1], now(), int(args[0])))
+        con.execute(
+            "UPDATE tasks SET agent=?, state='doing', updated=? WHERE id=?",
+            (args[1], now(), int(args[0])),
+        )
         print(f"task {args[0]} claimed by {args[1]}")
     elif cmd == "set-state":
         if args[1] not in STATES:
-            print(f"state must be one of {STATES}"); return 1
-        note = args[2] if len(args) > 2 else ""
-        con.execute("UPDATE tasks SET state=?, note=?, updated=? WHERE id=?", (args[1], note, now(), int(args[0])))
+            print(f"state must be one of {STATES}")
+            return 1
+        note = args[2] if len(args) > 2 else ""  # noqa: PLR2004 - optional 3rd arg
+        con.execute(
+            "UPDATE tasks SET state=?, note=?, updated=? WHERE id=?",
+            (args[1], note, now(), int(args[0])),
+        )
         print(f"task {args[0]} -> {args[1]}")
     elif cmd == "decide":
-        con.execute("INSERT INTO decisions(agent,topic,decision,created) VALUES(?,?,?,?)", (args[0], args[1], args[2], now()))
+        con.execute(
+            "INSERT INTO decisions(agent,topic,decision,created) VALUES(?,?,?,?)",
+            (args[0], args[1], args[2], now()),
+        )
         print("decision recorded")
     elif cmd == "decisions":
         if args:
-            rows = con.execute("SELECT * FROM decisions WHERE topic LIKE ? ORDER BY id", (f"%{args[0]}%",)).fetchall()
+            rows = con.execute(
+                "SELECT * FROM decisions WHERE topic LIKE ? ORDER BY id", (f"%{args[0]}%",)
+            ).fetchall()
         else:
             rows = con.execute("SELECT * FROM decisions ORDER BY id").fetchall()
         show(rows, ("id", "topic", "decision", "agent", "created"))
@@ -152,25 +210,38 @@ def main(argv):
                 pos.append(a)
         if frm:
             pos.insert(0, frm)
-        if len(pos) < 2:
+        if len(pos) < 2:  # noqa: PLR2004 - needs agent + message
             sys.exit('usage: note AGENT "message" [--to AGENT]  (or --from AGENT)')
-        con.execute("INSERT INTO notes(from_agent,to_agent,message,created) VALUES(?,?,?,?)", (pos[0], to, pos[1], now()))
+        con.execute(
+            "INSERT INTO notes(from_agent,to_agent,message,created) VALUES(?,?,?,?)",
+            (pos[0], to, pos[1], now()),
+        )
         print(f"note sent to {to}")
     elif cmd == "inbox":
-        rows = con.execute("SELECT * FROM notes WHERE (to_agent=? OR to_agent='*') AND read=0 ORDER BY id", (args[0],)).fetchall()
+        rows = con.execute(
+            "SELECT * FROM notes WHERE (to_agent=? OR to_agent='*') AND read=0 ORDER BY id",
+            (args[0],),
+        ).fetchall()
         show(rows, ("id", "from_agent", "to_agent", "message", "created"))
         con.execute("UPDATE notes SET read=1 WHERE to_agent=? AND read=0", (args[0],))
     elif cmd == "contract":
-        con.execute("INSERT INTO contracts(agent,name,spec,updated) VALUES(?,?,?,?) "
-                    "ON CONFLICT(name) DO UPDATE SET agent=excluded.agent, spec=excluded.spec, updated=excluded.updated",
-                    (args[0], args[1], args[2], now()))
+        con.execute(
+            "INSERT INTO contracts(agent,name,spec,updated) VALUES(?,?,?,?) "
+            "ON CONFLICT(name) DO UPDATE SET agent=excluded.agent, spec=excluded.spec, updated=excluded.updated",
+            (args[0], args[1], args[2], now()),
+        )
         print(f"contract '{args[1]}' published")
     elif cmd == "contracts":
-        show(con.execute("SELECT * FROM contracts ORDER BY name").fetchall(), ("name", "agent", "spec", "updated"))
+        show(
+            con.execute("SELECT * FROM contracts ORDER BY name").fetchall(),
+            ("name", "agent", "spec", "updated"),
+        )
     else:
-        print(__doc__); return 1
+        print(__doc__)
+        return 1
     con.commit()
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))
