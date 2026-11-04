@@ -137,3 +137,17 @@ def test_cover_font_is_the_rom_font():
     assert font._ROWS["N"] == ["#...#", "#...#", "##..#", "#.#.#", "#..##", "#...#", "#...#"]
     assert font._ROWS["S"] == [".###.", "#...#", "#....", ".###.", "....#", "#...#", ".###."]
     assert font._ROWS["W"] == ["#...#", "#...#", "#...#", "#.#.#", "#.#.#", "#.#.#", ".#.#."]
+
+
+def test_art_code_has_license_headers_and_credits():
+    from pathlib import Path
+
+    import retrobake.ai as ai
+
+    root = Path(ai.__file__).parent
+    for name in ("font.py", "offline.py"):
+        first = (root / name).read_text(encoding="utf-8").splitlines()[0]
+        assert first == "# SPDX-License-Identifier: GPL-3.0-or-later"
+    credits = (root.parents[2] / "CREDITS.md").read_text(encoding="utf-8")
+    for path in ("builders/nes_font.py", "ai/font.py", "ai/offline.py"):
+        assert f"src/retrobake/{path}" in credits

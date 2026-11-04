@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Cover title banner drawn with RetroBake's 5x7 house font.
 
 The glyphs come from ``builders/nes_font.py``, the single source of truth, so cover titles

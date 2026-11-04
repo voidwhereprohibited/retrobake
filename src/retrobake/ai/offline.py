@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Offline, deterministic, original-only cover art and name ideas (no network, stdlib only).
 
 Same spec + seed + variant always gives the same picture and names, on Windows and Linux.
