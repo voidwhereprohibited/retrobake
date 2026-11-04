@@ -6,10 +6,10 @@ pictures (no `QApplication` needed). Windows + Linux.
 ```python
 from retrobake.ai import AIService, AISettings
 
-ai = AIService(AISettings())                 # default: free Pollinations tier, no key
-art = ai.make_art(spec, variant=0)           # CoverArt(png, width, height, source, message)
-ideas = ai.suggest_names(spec, n=6)          # NameIdeas(names, source, message)
-cover = AIService.with_title(art, title)     # final PNG with the title banner
+ai = AIService(AISettings())  # default: free Pollinations tier, no key
+art = ai.make_art(spec, variant=0)  # CoverArt(png, width, height, source, message)
+ideas = ai.suggest_names(spec, n=6)  # NameIdeas(names, source, message)
+cover = AIService.with_title(art, title)  # final PNG with the title banner
 ```
 
 - **Never stuck:** `make_art` / `suggest_names` never raise for network, AI or guard problems.

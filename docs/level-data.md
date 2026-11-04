@@ -8,9 +8,11 @@ Owner: **game-design**. Used by nes-engine and snes-engine (M2 platformer). Don'
 
 ```python
 from retrobake.spec.platformer import generate_levels
-pack = generate_levels(spec)      # deterministic: same spec + seed -> same bytes
-blob = pack.encode()              # "RBLV" pack, fits BUDGETS[system]; .incbin it as data
-for level in pack.levels: ...     # or use Level objects directly
+
+pack = generate_levels(spec)  # deterministic: same spec + seed -> same bytes
+blob = pack.encode()  # "RBLV" pack, fits BUDGETS[system]; .incbin it as data
+for level in pack.levels:
+    ...  # or use Level objects directly
 ```
 
 ## What gets generated

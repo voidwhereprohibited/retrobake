@@ -5,8 +5,8 @@ Same shape as `nes-builder`, so the wizard can bake either system with the same 
 ```python
 from retrobake.builders import snes
 
-result = snes.bake(spec)            # spec = validated game-spec dict, system "snes"
-rom_bytes = result.rom             # complete headerless LoROM image, save it as .sfc
+result = snes.bake(spec)  # spec = validated game-spec dict, system "snes"
+rom_bytes = result.rom  # complete headerless LoROM image, save it as .sfc
 ```
 
 ## API

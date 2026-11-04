@@ -3,8 +3,8 @@
 ```python
 from retrobake.builders import nes
 
-result = nes.bake(spec)            # spec = validated game-spec dict, system "nes"
-rom_bytes = result.rom             # complete iNES file, write it with a .nes extension
+result = nes.bake(spec)  # spec = validated game-spec dict, system "nes"
+rom_bytes = result.rom  # complete iNES file, write it with a .nes extension
 ```
 
 ## API

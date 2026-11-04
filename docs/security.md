@@ -43,9 +43,12 @@ Limits mirror `src/retrobake/spec/game_spec.schema.json`; change both together.
 ```python
 with BuildWorkspace([TEMPLATES_DIR]) as ws:
     ws.copy_template(TEMPLATES_DIR / "nes/platformer", "src")
-    ws.write_file("src/level_data.s", generated_text)   # data only
-    res = run_build([CC65_BIN / "cl65", "-t", "nes", "-o", "game.nes", "src/main.s"],
-                    workspace=ws, toolchain_dirs=[CC65_BIN])
+    ws.write_file("src/level_data.s", generated_text)  # data only
+    res = run_build(
+        [CC65_BIN / "cl65", "-t", "nes", "-o", "game.nes", "src/main.s"],
+        workspace=ws,
+        toolchain_dirs=[CC65_BIN],
+    )
     rom = ws.read_output("game.nes", max_bytes=1024 * 1024)
 ```
 - Argument lists only (never `shell=True`); argv[0] must be inside a bundled toolchain folder.
