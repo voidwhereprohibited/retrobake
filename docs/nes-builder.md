@@ -39,3 +39,30 @@ RAM for engine variables stops at `$07FB`. CI job `nes-bake` boots it on Mesen +
 cc65 commit, native Linux + mingw-w64 Windows `.exe`, into `toolchains/cc65/{linux,windows}/bin`
 with cc65's zlib `LICENSE`. CI job `cc65` builds/caches it and hands it to the test jobs;
 release bundles the matching folder as `toolchains/cc65/bin` plus `templates/nes/`.
+
+## Platformer engine (`builders/nes_platformer.py`, `templates/nes/platformer/`)
+`nes_platformer.bake(spec)` turns a `side_jump` spec into a playable NROM-256 ROM (32K PRG,
+8K CHR, 40976 bytes). `nes.bake` still makes the "hello" ROM; switching the app over is a
+separate decision.
+- **Engine:** RetroBake's own ca65 assembly (`startup.s`, `game.s`). It calls the vendored
+  nesdoug/neslib library (`third_party/nesdoug/LIB`, included unchanged) and plays music through
+  FamiStudio's sound engine (`third_party/famistudio`). There is no C, so only ca65 and ld65 are
+  needed; `startup.s` supplies the few cc65 runtime symbols neslib uses (`sp`, `popa`, `popax`).
+- **Gameplay:** title screen, then Start. Walk with left/right and jump with A (3 tiles high,
+  5 long). The screen flips every 16 tiles. Solid tiles, one-way platforms, spikes and pits
+  restart the level. If there's a key, it opens doors. Reaching the goal flag goes to the next
+  level; after the last level it goes back to the title. Enemies and pickups other than the key
+  aren't in the engine yet.
+- **Data the builder writes** (the template `.incbin`s them; no user text becomes assembly):
+  - `levels.bin` from `spec.platformer.generate_levels`, as described in `level_data`: a
+    column map plus up to 42 unique nibble-packed columns per level.
+  - `text.bin` title records.
+  - `game.chr`: original placeholder art drawn in `nes_platformer_art.py`.
+  - FamiStudio's NTSC note tables, computed and checked against upstream's SHA-256.
+- **Music:** `music.s` is a short original placeholder tune in FamiStudio's data format.
+- **Third-party code:** see `third_party/THIRD_PARTY_NOTICES` and `third_party/SHA256SUMS`.
+  Release packaging must ship `third_party/` next to `templates/nes/`.
+- **Tests:** `tests/builders/test_nes_platformer.py` checks the vendored hashes, the note
+  tables, the level round-trip and the iNES header. It also boots the ROM in
+  `tests/builders/cpu6502.py` (full official 6502 opcode set plus a small NES bus): title,
+  Start, walk, jump, land, music writes.
