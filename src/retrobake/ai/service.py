@@ -17,7 +17,7 @@ from .font import add_title_banner
 from .raster import Canvas, from_png
 
 Source = Literal["offline"]
-MAX_NAME_CHARS = 24  # same limit as the game-spec title
+MAX_NAME_CHARS = 24  # longest name idea we offer
 MIN_NAME_CHARS = 3
 _NUMBERING = re.compile(r"^\s*(?:[-*\u2022]+|\(?\d{1,2}[.):\]]|[a-hA-H][.)])\s*")
 
