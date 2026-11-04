@@ -1,7 +1,7 @@
 """RetroBake game-spec: the data model every other part of RetroBake builds on.
 
 Public API (contract "game-spec", see docs/game-spec.md):
-    new_spec(system, genres, description, title, seed) -> (spec, fixes)
+    new_spec(system, genre, description, title, seed, *, inspirations, template) -> (spec, fixes)
     questions_for(spec) -> [question]
     apply_answers(spec, {question_id: value}) -> (spec, fixes)
     resolve(spec) -> (spec, fixes)
@@ -18,7 +18,7 @@ from typing import Any
 
 import fastjsonschema
 
-from .builder import combine_modules, new_spec
+from .builder import genre_modules, new_spec
 from .catalog import SPEC_VERSION, available_genres, catalog, schema
 from .questions import apply_answers, questions_for
 from .rules import INCOMPATIBLE, Fix, problems, resolve
@@ -78,7 +78,7 @@ __all__ = [
     "apply_answers",
     "available_genres",
     "catalog",
-    "combine_modules",
+    "genre_modules",
     "new_spec",
     "questions_for",
     "resolve",

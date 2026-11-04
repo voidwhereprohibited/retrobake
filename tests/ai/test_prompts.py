@@ -7,7 +7,7 @@ from retrobake.spec import new_spec
 
 
 def base(**kw):
-    s, _ = new_spec("nes", ["platformer"], "a frog who rescues the moon", title="Moon Frog")
+    s, _ = new_spec("nes", "platformer", "a frog who rescues the moon", title="Moon Frog")
     s.update(kw)
     return s
 

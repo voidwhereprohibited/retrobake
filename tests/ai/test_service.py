@@ -8,7 +8,7 @@ from retrobake.spec import new_spec
 
 
 def spec(system="nes"):
-    s, _ = new_spec(system, ["platformer"], "a frog who saves the moon", seed=42)
+    s, _ = new_spec(system, "platformer", "a frog who saves the moon", seed=42)
     return s
 
 

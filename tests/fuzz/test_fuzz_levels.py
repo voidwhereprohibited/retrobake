@@ -28,7 +28,7 @@ SLOW = 3.0
 def random_spec(rng: random.Random) -> dict:
     system = rng.choice(["nes", "snes"])
     seed = rng.choice([0, 1, 2**32 - 1, rng.randrange(2**32)])
-    spec, _ = gs.new_spec(system, ["platformer"], seed=seed)
+    spec, _ = gs.new_spec(system, "platformer", seed=seed)
     spec["modules"]["progression"] = rng.choice(["linear_levels", "open_map", "dungeons_items"])
     spec["modules"]["extras"] = rng.sample(EXTRAS, rng.randint(0, len(EXTRAS)))
     spec["world"]["difficulty"] = rng.choice(["easy", "normal", "hard"])
@@ -90,7 +90,7 @@ def test_random_specs_always_give_good_packs():
 def test_biggest_worlds_fit_the_budget(system):
     for prog in ("linear_levels", "open_map", "dungeons_items"):
         for seed in (0, 7, 2**32 - 1):
-            spec, _ = gs.new_spec(system, ["platformer"], seed=seed)
+            spec, _ = gs.new_spec(system, "platformer", seed=seed)
             spec["modules"]["progression"] = prog
             spec["modules"]["extras"] = list(EXTRAS)
             spec["world"].update(difficulty="hard", map_size="large", levels=16, dungeons=8)

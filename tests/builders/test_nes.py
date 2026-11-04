@@ -23,8 +23,10 @@ needs_cc65 = pytest.mark.skipif(
 )
 
 
-def _spec(title="Hello World", genres=("platformer",)):
-    spec, _ = gs.new_spec("nes", list(genres), "a brave fox crosses the hills", title, seed=3)
+def _spec(title="Hello World", genre="platformer", template=None):
+    spec, _ = gs.new_spec(
+        "nes", genre, "a brave fox crosses the hills", title, seed=3, template=template
+    )
     return spec
 
 
@@ -63,7 +65,7 @@ def test_unsafe_titles_never_reach_the_build(bad):
 
 
 def test_rejects_snes_and_broken_specs():
-    spec, _ = gs.new_spec("snes", ["platformer"], "x", "Hello", seed=1)
+    spec, _ = gs.new_spec("snes", "platformer", "x", "Hello", seed=1)
     with pytest.raises(nes.NesBuildError, match="NES"):
         nes.bake(spec)
     broken = _spec()
@@ -120,9 +122,9 @@ def test_bake_hello_world_rom_boots_and_shows_title():
 
 
 @needs_cc65
-def test_bake_is_deterministic_and_works_for_mashups():
+def test_bake_is_deterministic_and_works_for_templates():
     a = nes.bake(_spec("Same Game")).rom
     b = nes.bake(_spec("Same Game")).rom
     assert a == b
-    mash = nes.bake(_spec("Mashup", ("platformer", "topdown_adventure")))
-    assert mash.mapper == "NROM-128"
+    tmpl = nes.bake(_spec("Quest", "platformer", "action-adventure"))
+    assert tmpl.mapper == "NROM-128"
