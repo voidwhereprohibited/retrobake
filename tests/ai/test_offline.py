@@ -127,3 +127,13 @@ def test_curated_lists_are_single_theme_and_not_templated():
     for name in every:
         assert not name.startswith("Super ") and not name.endswith(" II")
         assert check_title(name) == name and not find_ip(name)
+
+
+def test_cover_font_is_the_rom_font():
+    from retrobake.ai import font
+    from retrobake.builders import nes_font
+
+    assert font._ROWS == {ch: rows.split() for ch, rows in nes_font.GLYPHS.items()}
+    assert font._ROWS["N"] == ["#...#", "#...#", "##..#", "#.#.#", "#..##", "#...#", "#...#"]
+    assert font._ROWS["S"] == [".###.", "#...#", "#....", ".###.", "....#", "#...#", ".###."]
+    assert font._ROWS["W"] == ["#...#", "#...#", "#...#", "#.#.#", "#.#.#", "#.#.#", ".#.#."]
