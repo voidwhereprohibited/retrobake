@@ -25,7 +25,11 @@ ROM_BYTES = nes.HEADER_BYTES + PRG_BYTES + nes.CHR_BYTES
 MAX_LEVELS = 16
 MAX_COLUMNS = 42  # unique columns per level; column offsets must fit in one byte (x6)
 MAX_LEVEL_BYTES = 8192
-LEVEL_HEADER = 8
+LEVEL_HEADER = 9
+MAX_ENEMIES = 8  # per level; keeps the sprite count per scanline low
+WALKER, PATROLLER = 0, 1  # engine enemy kinds
+ENEMY_KINDS = {lv.WALKER: WALKER, lv.HOPPER: WALKER, lv.FLYER: PATROLLER}
+FLAG_STOMP = 1  # jumping on an enemy defeats it; otherwise enemies must be avoided
 PRESS_START = "PRESS START"
 PRESS_ROW = 16
 
@@ -85,7 +89,15 @@ def _unpack_column(data: bytes) -> bytes:
     return bytes(out)
 
 
-def _level_record(level: lv.Level) -> bytes:
+def _enemies(level: lv.Level) -> list[tuple[int, int, int]]:
+    """Up to MAX_ENEMIES (x, y, kind), spread evenly along the level when there are more."""
+    found = sorted((o.x, o.y, ENEMY_KINDS[o.kind]) for o in level.objects if o.kind in ENEMY_KINDS)
+    if len(found) <= MAX_ENEMIES:
+        return found
+    return [found[i * len(found) // MAX_ENEMIES] for i in range(MAX_ENEMIES)]
+
+
+def _level_record(level: lv.Level, flags: int = 0) -> bytes:
     if not 1 <= level.width <= 128 or level.width % lv.SCREEN_WIDTH:
         raise ValueError(f"level {level.index}: width {level.width} doesn't fit the NES engine")
     columns: dict[bytes, int] = {}
@@ -100,23 +112,28 @@ def _level_record(level: lv.Level) -> bytes:
             f"level {level.index}: {len(columns)} different columns (max {MAX_COLUMNS})"
         )
     key = next(((o.x, o.y) for o in level.objects if o.kind == lv.KEY), (0xFF, 0xFF))
-    head = bytes([level.width, *level.start, *level.goal, *key, len(columns)])
+    head = bytes([level.width, *level.start, *level.goal, *key, len(columns), flags])
+    enemies = _enemies(level)
+    head += bytes([len(enemies)]) + b"".join(bytes(e) for e in enemies)
     return head + bytes(col_map) + b"".join(_pack_column(c) for c in columns)
 
 
-def level_data(pack: lv.LevelPack) -> bytes:
+def level_data(pack: lv.LevelPack, *, stomp: bool = True) -> bytes:
     """levels.bin for the engine.
 
     Layout: ``count``, then ``count`` little-endian offsets (from the start of the data), then
     one record per level: ``width, start_x, start_y, goal_x, goal_y, key_x, key_y`` (key
-    $FF/$FF when there is none), ``n_columns``, a ``width``-byte column map, then ``n_columns``
+    $FF/$FF when there is none), ``n_columns``, ``flags`` (bit 0: stomping defeats enemies),
+    ``n_enemies`` and ``n_enemies`` x ``(x, y, kind)`` (kind 0 walker, 1 patroller), then a
+    ``width``-byte column map, then ``n_columns``
     unique columns of 6 bytes (12 rows, two 4-bit tiles per byte, even row in the low nibble).
     Unlike the RBLV pack, the 6502 can read any tile straight from ROM in a few steps.
     """
     levels = pack.levels
     if not 1 <= len(levels) <= MAX_LEVELS:
         raise ValueError(f"{len(levels)} levels (the NES engine takes 1-{MAX_LEVELS})")
-    records = [_level_record(level) for level in levels]
+    flags = FLAG_STOMP if stomp else 0
+    records = [_level_record(level, flags) for level in levels]
     offsets, pos = [], 1 + 2 * len(records)
     for rec in records:
         offsets.append(pos)
@@ -133,14 +150,27 @@ def decode_level_data(data: bytes) -> list[dict[str, Any]]:
     count = data[0]
     for i in range(count):
         pos = int.from_bytes(data[1 + 2 * i : 3 + 2 * i], "little")
-        width, sx, sy, gx, gy, kx, ky, ncols = data[pos : pos + LEVEL_HEADER]
-        col_map = data[pos + LEVEL_HEADER : pos + LEVEL_HEADER + width]
-        base = pos + LEVEL_HEADER + width
+        width, sx, sy, gx, gy, kx, ky, ncols, flags = data[pos : pos + LEVEL_HEADER]
+        pos += LEVEL_HEADER
+        count_e = data[pos]
+        raw = data[pos + 1 : pos + 1 + 3 * count_e]
+        enemies = [tuple(raw[i : i + 3]) for i in range(0, len(raw), 3)]
+        pos += 1 + 3 * count_e
+        col_map = data[pos : pos + width]
+        base = pos + width
         cols = [_unpack_column(data[base + 6 * c : base + 6 * c + 6]) for c in range(ncols)]
         tiles = [bytearray(cols[col_map[x]][y] for x in range(width)) for y in range(lv.HEIGHT)]
         key = None if (kx, ky) == (0xFF, 0xFF) else (kx, ky)
         out.append(
-            {"width": width, "start": (sx, sy), "goal": (gx, gy), "key": key, "tiles": tiles}
+            {
+                "width": width,
+                "start": (sx, sy),
+                "goal": (gx, gy),
+                "key": key,
+                "stomp": bool(flags & FLAG_STOMP),
+                "enemies": enemies,
+                "tiles": tiles,
+            }
         )
     return out
 
@@ -162,8 +192,9 @@ def _levels_for(spec: dict[str, Any]) -> bytes:
 
     if spec.get("modules", {}).get("movement") != "side_jump":
         raise nes.NesBuildError("The NES platformer engine only makes side-view jumping games.")
+    stomp = spec["modules"].get("combat") == "stomp"
     try:
-        return level_data(generate_levels(spec))
+        return level_data(generate_levels(spec), stomp=stomp)
     except ValueError as exc:
         raise nes.NesBuildError("This game's levels are too big for the NES.", str(exc)) from exc
 

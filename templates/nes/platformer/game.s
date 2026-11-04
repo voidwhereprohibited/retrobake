@@ -4,16 +4,21 @@
 ;   levels.bin - level table, see retrobake.builders.nes_platformer.level_data
 ;   text.bin   - title-screen text records: [addr_hi, addr_lo, len, tile...]..., then 0
 ;
-; Flip-screen platformer: the hero runs and jumps through each level, one 16-metatile screen
-; at a time. Touching the goal moves on to the next level. Spikes or falling restart the
-; level. Picking up the key opens doors. Enemies and collectibles are not drawn yet.
+; Side-scrolling platformer. The camera follows the hero; both nametables form a 512-pixel
+; ring and each frame streams at most one missing metatile column through neslib's VRAM
+; update buffer. Walkers walk and turn at walls and ledges; patrollers pace a short stretch
+; and ignore ledges. Jumping on an enemy defeats it when the level allows stomping; any
+; other touch, spikes or a fall costs a life and restarts the level. No lives left: title.
+; Touching the goal moves on to the next level. Picking up the key opens doors.
 
 .export _main
 .import _ppu_off, _ppu_on_all, _ppu_wait_nmi, _pal_all, _oam_clear, _pad_trigger, _pad_state
+.import _set_scroll_x, _set_vram_update
 
 PPU_ADDR = $2006
 PPU_DATA = $2007
 OAM_BUF  = $0200
+QA       = $07F0             ; qa block: lives cam_lo cam_hi enemies_alive level hx_lo hx_hi hy
 SIG      = $07FC             ; qa boot signature: 'R' 'B' version state
 
 PAD_A     = $80
@@ -33,7 +38,15 @@ META_BASE = $40              ; first background tile of the metatile graphics
 GRAVITY   = 4                ; all speeds in 1/16 pixel per frame
 MAX_FALL  = 64
 JUMP_VY   = $A8              ; -88: about 3.8 metatiles high, 5.5 long
+BOUNCE_VY = $C8              ; -56: hop after a stomp
 RUN_SPEED = 2                ; pixels per frame
+LIVES     = 3
+MAX_ENEMIES = 8
+PATROL    = 3                ; patrollers pace this many columns either side of their start
+CAM_LEAD  = 120              ; hero x on screen while the camera follows
+FLAG_STOMP = 1
+VERT_RUN  = $80              ; neslib update buffer: vertical run
+COL_BUF_LEN = 55
 
 .segment "ZEROPAGE"
 lv_ptr:     .res 2
@@ -48,6 +61,7 @@ goal_x:     .res 1
 goal_y:     .res 1
 key_x:      .res 1
 key_y:      .res 1
+lv_flags:   .res 1
 has_key:    .res 1
 hx:         .res 2           ; hero left edge, level pixels
 hy_frac:    .res 1
@@ -56,7 +70,12 @@ old_hy:     .res 1
 vy:         .res 1
 on_ground:  .res 1
 facing:     .res 1           ; 0 right, 1 left
-screen:     .res 1           ; screen shown now ($FF = none)
+cam_x:      .res 2           ; level pixel at the screen's left edge
+lives:      .res 1
+frame:      .res 1
+n_enemies:  .res 1
+ei:         .res 1           ; enemy being updated
+col_c:      .res 1           ; column being streamed
 pad:        .res 1
 padt:       .res 1
 tx:         .res 2           ; probe point
@@ -64,13 +83,25 @@ ty:         .res 1
 trow:       .res 1
 tmp:        .res 4
 
+.segment "BSS"
+col_buf:    .res COL_BUF_LEN ; neslib update buffer: two 24-tile vertical runs, then $FF
+nt_col:     .res 32          ; level column held in each nametable column slot ($FF = none)
+e_xl:       .res MAX_ENEMIES ; enemy left edge, level pixels
+e_xh:       .res MAX_ENEMIES
+e_y:        .res MAX_ENEMIES ; enemy top edge
+e_kind:     .res MAX_ENEMIES ; 0 walker, 1 patroller
+e_dir:      .res MAX_ENEMIES ; 0 right, 1 left
+e_alive:    .res MAX_ENEMIES
+e_lo:       .res MAX_ENEMIES ; patrol range, columns
+e_hi:       .res MAX_ENEMIES
+
 .segment "RODATA"
 levels:     .incbin "levels.bin"
 title_text: .incbin "text.bin"
 
 palette:
     .byte $21,$30,$17,$0A, $21,$30,$17,$0A, $21,$30,$17,$0A, $21,$30,$17,$0A
-    .byte $21,$16,$37,$0F, $21,$28,$30,$0F, $21,$16,$37,$0F, $21,$16,$37,$0F
+    .byte $21,$16,$37,$0F, $21,$28,$30,$0F, $21,$1A,$30,$0F, $21,$16,$30,$0F
 
 ; 0 = passable, 1 = solid, 2 = solid until the hero has the key
 solid_tbl:  .byte 0, 1, 1, 1, 0, 1, 2, 0
@@ -83,16 +114,24 @@ _main:
     jsr _pal_all
     lda levels
     sta lv_count
+    lda #$FF
+    sta col_buf
+    lda #<col_buf
+    ldx #>col_buf
+    jsr _set_vram_update
 
 title:
     lda #1
     jsr set_sig
     jsr _ppu_off
     jsr _oam_clear
-    jsr clear_nametable
+    lda #$FF                 ; nothing to stream
+    sta col_buf
+    lda #0
+    tax
+    jsr _set_scroll_x
+    jsr clear_nametables
     jsr draw_text
-    lda #$FF
-    sta screen
     jsr _ppu_on_all
 @wait:
     jsr _ppu_wait_nmi
@@ -103,11 +142,14 @@ title:
 
     lda #2
     jsr set_sig
+    lda #LIVES
+    sta lives
     lda #0
-    jsr load_level
+    jsr start_level
 
 game_loop:
     jsr _ppu_wait_nmi
+    inc frame
     lda #0
     jsr _pad_trigger
     sta padt
@@ -118,14 +160,22 @@ game_loop:
     jsr move_y
     jsr check_hazards
     bcs @dead
+    jsr update_enemies
+    bcs @dead
     jsr check_pickups
     bcs @next
-    jsr show_screen
+    jsr update_camera
+    jsr stream_column
     jsr draw_sprites
+    jsr write_qa
     jmp game_loop
 @dead:
+    dec lives
+    bne @retry
+    jmp title                ; game over
+@retry:
     lda lv_index
-    jsr load_level
+    jsr start_level
     jmp game_loop
 @next:
     ldx lv_index
@@ -135,7 +185,7 @@ game_loop:
     jmp title                ; all levels done: back to the title screen
 @load:
     txa
-    jsr load_level
+    jsr start_level
     jmp game_loop
 
 ; A = state
@@ -149,9 +199,60 @@ set_sig:
     sta SIG+2
     rts
 
+write_qa:
+    lda lives
+    sta QA
+    lda cam_x
+    sta QA+1
+    lda cam_x+1
+    sta QA+2
+    lda #0
+    sta tmp
+    ldx n_enemies
+@count:
+    dex
+    bmi @counted
+    lda e_alive,x
+    clc
+    adc tmp
+    sta tmp
+    jmp @count
+@counted:
+    lda tmp
+    sta QA+3
+    lda lv_index
+    sta QA+4
+    lda hx
+    sta QA+5
+    lda hx+1
+    sta QA+6
+    lda hy
+    sta QA+7
+    rts
+
 ; ---------------------------------------------------------------- levels
 
-; A = level number. Points at its data and puts the hero at the start.
+; A = level number. Loads it, then draws the first screen while the hero waits.
+start_level:
+    jsr load_level
+    jsr _ppu_off
+    jsr _oam_clear
+    jsr clear_nametables
+    jsr forget_columns
+    lda #$FF
+    sta col_buf
+    jsr update_camera
+    jsr write_qa
+    jsr _ppu_on_all
+@fill:
+    jsr stream_column
+    php
+    jsr _ppu_wait_nmi
+    plp
+    bcs @fill
+    rts
+
+; A = level number. Points at its data, places the enemies and puts the hero at the start.
 load_level:
     sta lv_index
     asl
@@ -170,9 +271,37 @@ load_level:
     iny
     cpy #7
     bne @fields
-    lda lv_ptr               ; column map follows the 8-byte header
+    ldy #8
+    lda (lv_ptr),y
+    sta lv_flags
+    iny
+    lda (lv_ptr),y
+    sta n_enemies
+    iny
+    ldx #0
+@enemy:
+    cpx n_enemies
+    bcs @enemies_done
+    lda (lv_ptr),y           ; column, row, kind
+    sta e_lo,x
+    iny
+    lda (lv_ptr),y
+    asl
+    asl
+    asl
+    asl
+    sta e_y,x
+    iny
+    lda (lv_ptr),y
+    sta e_kind,x
+    iny
+    jsr place_enemy
+    inx
+    bne @enemy
+@enemies_done:
+    tya                      ; column map follows the enemy list
     clc
-    adc #8
+    adc lv_ptr
     sta map_ptr
     lda lv_ptr+1
     adc #0
@@ -191,25 +320,59 @@ load_level:
     sta hy_frac
     sta facing
     sta on_ground
-    sta hx+1
     lda start_x
-    asl
-    rol hx+1
-    asl
-    rol hx+1
-    asl
-    rol hx+1
-    asl
-    rol hx+1
+    jsr col_px
+    lda tmp+2
     sta hx
+    lda tmp+3
+    sta hx+1
     lda start_y
     asl
     asl
     asl
     asl
     sta hy
-    lda #$FF
-    sta screen
+    rts
+
+; Enemy X: start column in e_lo -> position, patrol range, facing left, alive. Keeps X, Y.
+place_enemy:
+    lda e_lo,x
+    clc
+    adc #PATROL
+    sta e_hi,x
+    lda e_lo,x
+    pha
+    sec
+    sbc #PATROL
+    bcs :+
+    lda #0
+:   sta e_lo,x
+    pla
+    sty tmp
+    jsr col_px
+    ldy tmp
+    lda tmp+2
+    sta e_xl,x
+    lda tmp+3
+    sta e_xh,x
+    lda #1
+    sta e_dir,x
+    sta e_alive,x
+    rts
+
+; A = column -> tmp+2/tmp+3 = column * 16 (level pixels). Keeps X; uses Y.
+col_px:
+    ldy #0
+    sty tmp+3
+    asl
+    rol tmp+3
+    asl
+    rol tmp+3
+    asl
+    rol tmp+3
+    asl
+    rol tmp+3
+    sta tmp+2
     rts
 
 ; Tile at column A, row trow -> A. Outside the level sides is wall; below is empty.
@@ -586,10 +749,9 @@ check_pickups:
     lda tmp+1
     cmp key_y
     bne @goal
-    lda #1                   ; got the key: doors open, redraw the screen
+    lda #1                   ; got the key: doors open, redraw what's on screen
     sta has_key
-    lda #$FF
-    sta screen
+    jsr forget_columns
 @goal:
     lda tmp
     cmp goal_x
@@ -603,62 +765,275 @@ check_pickups:
     clc
     rts
 
-; ---------------------------------------------------------------- drawing
 
-; Screen = (hx + 8) / 256. Redraws the background when it changes.
-show_screen:
-    lda hx
+; ---------------------------------------------------------------- enemies
+
+; Moves every enemy; carry set if one hurt the hero.
+update_enemies:
+    lda #0
+    sta ei
+@loop:
+    lda ei
+    cmp n_enemies
+    bcs @safe
+    tax
+    lda e_alive,x
+    beq @next
+    jsr move_enemy
+    jsr touch_enemy
+    bcs @hurt
+@next:
+    inc ei
+    jmp @loop
+@safe:
     clc
-    adc #8
-    lda hx+1
-    adc #0
-    cmp screen
-    bne draw_screen
+@hurt:
     rts
 
-; A = screen number
-draw_screen:
-    sta screen
-    jsr _ppu_off
-    jsr clear_nametable
-    lda #0
-    sta trow
-@row:
-    lda trow                 ; nametable address of the row's top half: $2080 + row * 64
+; Walkers step every other frame and turn at walls and ledges; patrollers step every frame
+; and turn at walls and at the ends of their range.
+move_enemy:
+    ldx ei
+    lda e_kind,x
+    bne @patrol
+    lda frame
     lsr
-    lsr
+    bcc @done
+    jsr enemy_step
+    jsr enemy_wall
+    bcs enemy_turn
+    ldx ei
+    lda e_y,x
     clc
-    adc #$20
-    sta tmp+2
-    lda trow
-    and #3
-    lsr
-    ror
-    ror
-    clc
-    adc #$80
-    sta tmp+3
-    bcc :+
-    inc tmp+2
-:   lda #0
-    sta tmp+1                ; 0 = top half, 2 = bottom half
-@half:
-    lda tmp+2
-    sta PPU_ADDR
-    lda tmp+3
-    sta PPU_ADDR
-    ldx #0
-@col:
-    txa
-    pha
-    lda screen
+    adc #16
+    sta ty
+    jsr tile_at              ; floor under the front edge?
+    cmp #T_PLAT
+    beq @done
+    jsr is_solid
+    bcc enemy_turn
+@done:
+    rts
+@patrol:
+    jsr enemy_step
+    jsr enemy_wall
+    bcs enemy_turn
+    ldx ei
+    lda tx+1                 ; front column
     asl
     asl
     asl
     asl
     sta tmp
-    txa
+    lda tx
+    lsr
+    lsr
+    lsr
+    lsr
     ora tmp
+    cmp e_lo,x
+    bcc enemy_turn
+    beq @done
+    cmp e_hi,x
+    bcc @done
+    beq @done
+enemy_turn:
+    ldx ei
+    lda e_dir,x
+    eor #1
+    sta e_dir,x
+    ; fall through: step back the way it came
+
+; Enemy ei moves one pixel its way.
+enemy_step:
+    ldx ei
+    lda e_dir,x
+    bne @left
+    inc e_xl,x
+    bne :+
+    inc e_xh,x
+:   rts
+@left:
+    lda e_xl,x
+    bne :+
+    dec e_xh,x
+:   dec e_xl,x
+    rts
+
+; Carry set if a wall is just ahead of enemy ei (front edge in tx/tx+1 afterwards).
+enemy_wall:
+    ldx ei
+    lda e_xl,x
+    ldy e_dir,x
+    bne @left
+    clc
+    adc #15
+    sta tx
+    lda e_xh,x
+    adc #0
+    sta tx+1
+    jmp @probe
+@left:
+    sta tx
+    lda e_xh,x
+    sta tx+1
+@probe:
+    lda e_y,x
+    clc
+    adc #8
+    sta ty
+    jsr tile_at
+    jmp is_solid
+
+; Hero against enemy ei. Carry set if the hero is hurt; a stomp defeats the enemy instead.
+touch_enemy:
+    ldx ei
+    lda e_xl,x               ; dx = enemy x - hero x, must be within -11..11
+    sec
+    sbc hx
+    sta tmp
+    lda e_xh,x
+    sbc hx+1
+    beq @right
+    cmp #$FF
+    bne @miss
+    lda tmp
+    cmp #245
+    bcc @miss
+    bcs @near
+@right:
+    lda tmp
+    cmp #12
+    bcs @miss
+@near:
+    lda e_y,x                ; dy = enemy y - hero y, must be within -13..13
+    sec
+    sbc hy
+    clc
+    adc #13
+    cmp #27
+    bcs @miss
+    sta tmp
+    lda lv_flags
+    and #FLAG_STOMP
+    beq @hurt
+    lda vy                   ; falling, with the hero's feet near the enemy's top
+    beq @hurt
+    bmi @hurt
+    lda tmp
+    cmp #13+6
+    bcc @hurt
+    lda #0
+    sta e_alive,x
+    sta on_ground
+    lda #BOUNCE_VY
+    sta vy
+@miss:
+    clc
+    rts
+@hurt:
+    sec
+    rts
+
+; ---------------------------------------------------------------- scrolling
+
+; cam_x = hx - CAM_LEAD, kept inside the level, and handed to neslib.
+update_camera:
+    lda hx
+    sec
+    sbc #CAM_LEAD
+    sta cam_x
+    lda hx+1
+    sbc #0
+    sta cam_x+1
+    bpl :+
+    lda #0
+    sta cam_x
+    sta cam_x+1
+:   lda lv_width             ; widths are whole screens: the last camera x is (screens-1)*256
+    lsr
+    lsr
+    lsr
+    lsr
+    sec
+    sbc #1
+    cmp cam_x+1
+    bcs :+
+    sta cam_x+1
+    lda #0
+    sta cam_x
+:   lda cam_x
+    ldx cam_x+1
+    jmp _set_scroll_x
+
+forget_columns:
+    lda #$FF
+    ldx #31
+:   sta nt_col,x
+    dex
+    bpl :-
+    rts
+
+; Queues the first of the 17 columns in view that isn't in the nametables yet.
+; Carry set if one was queued.
+stream_column:
+    lda cam_x+1
+    asl
+    asl
+    asl
+    asl
+    sta col_c
+    lda cam_x
+    lsr
+    lsr
+    lsr
+    lsr
+    ora col_c
+    sta col_c
+    lda #17
+    sta tmp+3
+@scan:
+    lda col_c
+    cmp lv_width
+    bcs @none
+    and #31
+    tax
+    lda nt_col,x
+    cmp col_c
+    bne @draw
+    inc col_c
+    dec tmp+3
+    bne @scan
+@none:
+    lda #$FF
+    sta col_buf
+    clc
+    rts
+@draw:
+    lda col_c
+    sta nt_col,x
+    and #16                  ; nametable $2000 or $2400, row 4, tile column (c & 15) * 2
+    lsr
+    lsr
+    ora #$20|VERT_RUN
+    sta col_buf
+    sta col_buf+27
+    lda col_c
+    and #15
+    asl
+    ora #$80
+    sta col_buf+1
+    ora #1
+    sta col_buf+28
+    lda #ROWS*2
+    sta col_buf+2
+    sta col_buf+29
+    lda #$FF
+    sta col_buf+54
+    lda #0
+    sta trow
+@row:
+    lda col_c
     jsr tile_cr
     cmp #T_DOOR
     bne :+
@@ -667,48 +1042,44 @@ draw_screen:
     lda #T_EMPTY             ; open door
 :   asl
     asl
-    ora tmp+1
     clc
     adc #META_BASE
-    sta PPU_DATA
-    clc
-    adc #1
-    sta PPU_DATA
-    pla
-    tax
-    inx
-    cpx #16
-    bne @col
-    lda tmp+3
-    clc
-    adc #32
-    sta tmp+3
-    bcc :+
-    inc tmp+2
-:   lda tmp+1
-    bne :+
-    lda #2
-    sta tmp+1
-    bne @half
-:   inc trow
+    sta tmp+2
+    lda trow
+    asl
+    tay
+    lda tmp+2                ; left half: top-left, bottom-left; right half: the other two
+    sta col_buf+3,y
+    ora #2
+    sta col_buf+4,y
+    lda tmp+2
+    ora #1
+    sta col_buf+30,y
+    ora #3
+    sta col_buf+31,y
+    inc trow
     lda trow
     cmp #ROWS
     bne @row
-    jmp _ppu_on_all
+    sec
+    rts
 
-clear_nametable:
+clear_nametables:
     lda #$20
     sta PPU_ADDR
     lda #$00
     sta PPU_ADDR
     tax
-    ldy #4
+    ldy #8
 :   sta PPU_DATA
     inx
     bne :-
     dey
     bne :-
     rts
+
+
+; ---------------------------------------------------------------- drawing
 
 draw_text:
     ldy #0
@@ -733,22 +1104,30 @@ draw_text:
 @done:
     rts
 
-; Hero (4 sprites), the key and the goal flag when they are on this screen.
+; tmp+2/tmp+3 = level x -> A = screen x. Carry set if it isn't on screen.
+to_screen:
+    lda tmp+2
+    sec
+    sbc cam_x
+    sta tmp+2
+    lda tmp+3
+    sbc cam_x+1
+    bne @off
+    lda tmp+2
+    cmp #241
+    rts
+@off:
+    sec
+    rts
+
+; Hero, key, goal flag, enemies and one heart per life.
 draw_sprites:
     jsr _oam_clear
-    lda hx+1                 ; x on screen, held at the edges while the screen flips
-    sec
-    sbc screen
-    beq @onscreen
-    bpl @right_edge
-    lda #0
-    beq @sx
-@right_edge:
-    lda #240
-    bne @sx
-@onscreen:
     lda hx
-@sx:
+    sta tmp+2
+    lda hx+1
+    sta tmp+3
+    jsr to_screen            ; the camera keeps the hero on screen
     sta tmp
     clc
     adc #8
@@ -790,12 +1169,11 @@ draw_sprites:
     lda key_x
     cmp #$FF
     beq @flag
-    lsr
-    lsr
-    lsr
-    lsr
-    cmp screen
-    bne @flag
+    jsr col_px
+    jsr to_screen
+    bcs @flag
+    adc #4
+    sta OAM_BUF+19
     lda key_y
     asl
     asl
@@ -808,22 +1186,14 @@ draw_sprites:
     sta OAM_BUF+17
     lda #1
     sta OAM_BUF+18
-    lda key_x
-    asl
-    asl
-    asl
-    asl
-    clc
-    adc #4
-    sta OAM_BUF+19
 @flag:
     lda goal_x
-    lsr
-    lsr
-    lsr
-    lsr
-    cmp screen
-    bne @done
+    jsr col_px
+    jsr to_screen
+    bcs @enemies
+    adc #4
+    sta OAM_BUF+23
+    sta OAM_BUF+27
     lda goal_y
     asl
     asl
@@ -842,16 +1212,92 @@ draw_sprites:
     lda #1
     sta OAM_BUF+22
     sta OAM_BUF+26
-    lda goal_x
-    asl
-    asl
-    asl
-    asl
+@enemies:
+    ldx #0
+    ldy #28                  ; enemies use OAM 28-155, four sprites each
+@enemy:
+    cpx n_enemies
+    bcs @hearts
+    lda e_alive,x
+    beq @enext
+    lda e_xl,x
+    sta tmp+2
+    lda e_xh,x
+    sta tmp+3
+    jsr to_screen
+    bcs @enext
+    sta OAM_BUF+3,y
+    sta OAM_BUF+11,y
+    adc #8
+    sta OAM_BUF+7,y
+    sta OAM_BUF+15,y
+    lda e_y,x
     clc
-    adc #4
-    sta OAM_BUF+23
-    sta OAM_BUF+27
-@done:
+    adc #TOP_PX-1
+    sta OAM_BUF+0,y
+    sta OAM_BUF+4,y
+    adc #8
+    sta OAM_BUF+8,y
+    sta OAM_BUF+12,y
+    lda e_kind,x             ; first tile: 8 walker, 12 patroller
+    asl
+    asl
+    adc #8
+    sta tmp
+    lda e_dir,x
+    beq @face_right
+    lda #$02                 ; palette 2, drawn facing left
+    sta tmp+1
+    lda tmp
+    jmp @tiles
+@face_right:
+    lda #$42                 ; mirrored
+    sta tmp+1
+    lda tmp
+    ora #1
+@tiles:                      ; A = tile in the left column
+    sta OAM_BUF+1,y
+    ora #2
+    sta OAM_BUF+9,y
+    eor #1
+    sta OAM_BUF+13,y
+    and #$FD
+    sta OAM_BUF+5,y
+    lda tmp+1
+    sta OAM_BUF+2,y
+    sta OAM_BUF+6,y
+    sta OAM_BUF+10,y
+    sta OAM_BUF+14,y
+    tya
+    clc
+    adc #16
+    tay
+@enext:
+    inx
+    jmp @enemy
+@hearts:
+    ldx lives
+    ldy #160
+    lda #8
+    sta tmp
+@heart:
+    lda #12
+    sta OAM_BUF+0,y
+    lda #7
+    sta OAM_BUF+1,y
+    lda #3
+    sta OAM_BUF+2,y
+    lda tmp
+    sta OAM_BUF+3,y
+    clc
+    adc #10
+    sta tmp
+    iny
+    iny
+    iny
+    iny
+    dex
+    bne @heart
     rts
 
 hero_attr:  .byte $00, $40
