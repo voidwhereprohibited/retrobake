@@ -1,14 +1,14 @@
-"""AI prompt guarding for Pollinations (cover art + name ideas).
+"""Prompt-text guarding (kept for the prompt templates in ai/prompts.py).
+
+RetroBake makes covers and names offline and sends no prompts anywhere; these checks stay
+so any future template keeps user text quoted, scrubbed and bounded.
 
 Rules for the ai-art prompt builder:
 1. Prompts come from a FIXED template in code. User text only fills marked slots.
 2. Every slot value goes through ``quote_user_text`` (sanitize + IP scrub + strip
    instruction-like text + wrap in quotes).
-3. The finished prompt goes through ``check_prompt`` right before the request.
-4. Requests always carry ``POLLINATIONS_REQUIRED_PARAMS`` (safe mode on, private,
-   server-side prompt "enhance" off so their AI can't rewrite names back in). On the keyed
-   gen.pollinations.ai host, ``safe`` must be ``POLLINATIONS_GEN_SAFE`` instead.
-5. Every response goes through outputs.validate_name / validate_image.
+3. The finished prompt goes through ``check_prompt`` before it is used.
+4. Any generated text goes through outputs.validate_name / validate_image.
 """
 
 from __future__ import annotations
@@ -19,14 +19,6 @@ from .errors import InputRejected
 from .ipguard import NEUTRAL, find_ip, scrub_ip
 from .sanitizer import clean_text
 
-POLLINATIONS_REQUIRED_PARAMS: dict[str, str] = {
-    "safe": "true",
-    "private": "true",
-    "enhance": "false",
-}
-# gen.pollinations.ai (keyed): safe=true only turns on privacy+secrets; the content filters
-# are named categories (verified against gen.pollinations.ai/openapi.json, 2026-10-25).
-POLLINATIONS_GEN_SAFE = "true,sexual,violence"
 MAX_PROMPT_CHARS = 900
 
 # Phrases that try to steer the AI instead of describing the game. No leading word
@@ -77,7 +69,6 @@ def check_prompt(prompt: str) -> str:
 __all__ = [
     "MAX_PROMPT_CHARS",
     "NEUTRAL",
-    "POLLINATIONS_REQUIRED_PARAMS",
     "check_prompt",
     "quote_user_text",
 ]

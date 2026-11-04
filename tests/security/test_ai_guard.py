@@ -1,9 +1,9 @@
+# ruff: noqa: S101, PLR2004 - pytest asserts and literal limits are the point of tests
 import struct
 
 import pytest
 
 from retrobake.security import (
-    POLLINATIONS_REQUIRED_PARAMS,
     InputRejected,
     OutputRejected,
     check_prompt,
@@ -39,11 +39,6 @@ def test_check_prompt():
     ):
         with pytest.raises(InputRejected):
             check_prompt(bad)
-
-
-def test_pollinations_params():
-    assert POLLINATIONS_REQUIRED_PARAMS["safe"] == "true"
-    assert POLLINATIONS_REQUIRED_PARAMS["enhance"] == "false"
 
 
 def test_validate_name():
@@ -87,13 +82,6 @@ def test_validate_image_bad():
     ):
         with pytest.raises(OutputRejected):
             validate_image(bad)
-
-
-def test_gen_safe_has_content_filters():
-    from retrobake.security import POLLINATIONS_GEN_SAFE
-
-    parts = set(POLLINATIONS_GEN_SAFE.split(","))
-    assert {"true", "sexual", "violence"} <= parts
 
 
 @pytest.mark.parametrize("glue", ["", "X", "\u0645", "1", "_", "\u00f3"])
