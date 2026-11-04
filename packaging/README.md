@@ -3,7 +3,7 @@
 `packaging/build.py` is the single entry point (CI's `package` job runs it on both systems):
 
 ```sh
-pip install -e . && pip install --require-hashes -r packaging/requirements.txt
+pip install --require-hashes -r requirements/runtime.txt && pip install --no-deps --no-build-isolation -e . && pip install --require-hashes -r packaging/requirements.txt
 bash tools/build_cc65.sh toolchains/cc65        # bundled ca65 + ld65 (zlib license)
 python packaging/build.py                       # -> dist/ + dist/SHA256SUMS
 ```

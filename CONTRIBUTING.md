@@ -24,7 +24,8 @@ cd retrobake
 ```
 
 ```
-python -m pip install -e ".[dev]"
+python -m pip install --require-hashes -r requirements/dev.txt
+python -m pip install --no-deps --no-build-isolation -e .
 ```
 
 ```

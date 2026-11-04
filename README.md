@@ -92,7 +92,8 @@ anywhere near the build tools. Found a security problem? Please report it privat
 ## Contributing
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md), the
 [Code of Conduct](CODE_OF_CONDUCT.md) and `docs/` (start with `docs/PLAN.md`). To run the
-tests, use `pip install -e ".[dev]"` and then `pytest`. Much of the code was written with the
+tests, use `pip install --require-hashes -r requirements/dev.txt`, then
+`pip install --no-deps --no-build-isolation -e .` and `pytest`. Much of the code was written with the
 help of AI coding agents and is reviewed by a human.
 
 ## License
