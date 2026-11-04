@@ -37,7 +37,7 @@ class WelcomeStep(WizardStep):
         _text(layout, "Here's how it works:")
         for line in (
             "1.  Pick a game system.",
-            "2.  Pick a kind of game — or mix two together.",
+            "2.  Pick one kind of game.",
             "3.  Tell us about your game in your own words.",
             "4.  Answer a few quick questions.",
             "5.  Pick a cover and a name.",
@@ -71,8 +71,8 @@ class GenreStep(_Placeholder):
     key = "genre"
     nav_label = "Kind of game"
     title = "What kind of game?"
-    subtitle = "Pick one kind, or mix two for something new."
-    placeholder = "You'll pick from a list here, with an optional second pick to mix."
+    subtitle = "Pick one kind of game."
+    placeholder = "You'll pick one from a list here."
 
 
 class DescribeStep(_Placeholder):
