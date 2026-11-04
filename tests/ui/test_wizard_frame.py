@@ -159,3 +159,18 @@ def test_button_text_never_clipped_at_any_zoom(window, app):
                 if b.isVisible():
                     need = b.fontMetrics().horizontalAdvance(b.text())
                     assert b.width() > need, (scale, i, b.text())
+
+
+def test_modern_tokens_no_pixel_fonts(app):
+    from pathlib import Path
+
+    import retrobake.themes as themes_pkg
+    from retrobake.themes import tokens
+
+    pixel_fonts = ("press start", "pressstart", "silkscreen")
+    folder = Path(themes_pkg.__file__).parent
+    for f in folder.glob("*.py"):
+        text = f.read_text().lower()
+        assert not any(p in text for p in pixel_fonts), f.name
+    assert tokens.FONT_FAMILIES[0] == "Inter"
+    assert app.font().families()[: len(tokens.FONT_FAMILIES)] == list(tokens.FONT_FAMILIES)
