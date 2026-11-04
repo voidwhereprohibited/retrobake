@@ -9,7 +9,7 @@ Never on Roger's own PC.
 |---|---|---|
 | Unit | `tests/<area>/` (pytest, every push) | each module's API and edge cases |
 | Boot smoke | `tests/emulator/run_smoke.py` (CI job "Bake sample ROMs + emulator smoke test", Linux + Windows) | every ROM loads, draws, reaches gameplay, never crashes or hangs |
-| Bake matrix (M1+, task #9) | same job, `RETROBAKE_SMOKE_ROMS=<dir>` | every genre and every allowed mashup, on NES and SNES |
+| Bake matrix (M1+, task #9) | same job, `RETROBAKE_SMOKE_ROMS=<dir>` | every available genre, on NES and SNES |
 | Fuzz | `tests/fuzz/test_fuzz_inputs.py` (every push, fixed seeds; `RETROBAKE_FUZZ_N` for longer runs) | junk / huge / hostile wizard text never crashes, hangs, or escapes the sandbox |
 | VM checks | clean Ubuntu + Windows VMs, release candidates only | real RetroArch launch (native, Flatpak, Snap, Steam), installer, signatures |
 
