@@ -1,0 +1,51 @@
+{
+  "setting": {"forest": ["woods", "jungle", "grove", "wild"], "cave": ["cavern", "mine", "underground", "tunnel"], "castle": ["fortress", "keep", "citadel", "palace"], "space": ["galaxy", "star", "orbit", "planet", "cosmic"], "ocean": ["sea", "underwater", "reef", "deep", "abyss"], "desert": ["sand", "dune", "wasteland", "oasis"], "city": ["street", "urban", "downtown", "metro"], "snow": ["ice", "frozen", "arctic", "tundra", "winter"], "volcano": ["lava", "magma", "fire", "inferno"], "haunted": ["ghost", "spooky", "graveyard", "crypt", "tomb"], "sky": ["cloud", "air", "floating", "heaven"], "factory": ["machine", "robot", "lab", "industrial"]},
+  "hero": {"knight": ["warrior", "paladin", "swordsman"], "ninja": ["shinobi", "assassin"], "robot": ["android", "mech", "droid", "cyborg"], "wizard": ["mage", "witch", "sorcerer"], "animal": ["cat", "fox", "dog", "frog", "rabbit", "bird"], "pilot": ["ship", "jet", "fighter", "spacecraft"], "kid": ["child", "boy", "girl", "youngster"], "explorer": ["adventurer", "treasure_hunter", "archaeologist"], "racer": ["driver", "car", "kart", "bike"], "athlete": ["player", "team", "champion"]},
+  "enemy": {"slime": ["blob", "goo", "ooze"], "skeleton": ["undead", "zombie", "bones"], "bat": ["vampire", "flyer"], "robot": ["drone", "turret", "machine"], "alien": ["invader", "ufo", "martian"], "beast": ["monster", "wolf", "bear", "creature"], "ghost": ["spirit", "phantom", "wraith"], "thug": ["gang", "bandit", "brawler", "punk"], "insect": ["bug", "spider", "beetle", "wasp"]},
+  "verb": {"jump": ["leap", "hop", "bounce", "platform"], "shoot": ["blast", "fire", "gun", "laser"], "slash": ["sword", "cut", "attack", "strike"], "punch": ["fight", "brawl", "kick", "beat"], "explore": ["search", "discover", "map", "wander"], "solve": ["puzzle", "push", "switch", "logic", "block"], "race": ["drive", "speed", "lap", "fast"], "fly": ["soar", "pilot", "scroll"], "collect": ["gather", "coin", "gem", "treasure"], "level_up": ["stats", "xp", "quest", "party", "turn"]},
+  "tone": {"heroic": ["epic", "brave", "noble"], "dark": ["grim", "gloomy", "horror", "creepy"], "cute": ["cozy", "adorable", "happy", "cheerful"], "comic": ["funny", "silly", "goofy"], "tense": ["intense", "fast", "frantic", "hard"], "mystic": ["magic", "mysterious", "ancient", "arcane"]},
+  "goal": {"rescue": ["save", "free", "protect"], "escape": ["flee", "survive", "break_out"], "treasure": ["loot", "relic", "artifact", "gold"], "defeat": ["destroy", "conquer", "boss", "stop"], "win": ["champion", "trophy", "cup", "first_place"], "restore": ["fix", "heal", "rebuild", "light"]},
+  "defaults": {"setting": "forest", "hero": "kid", "enemy": "slime", "tone": "heroic", "goal": "rescue"},
+  "templates": [
+    {"id": "action_platformer", "name": "Action Platformer", "genre": "platformer", "strong": ["jump", "platform", "side_scroll"], "weak": ["collect", "slime", "forest"], "genre_words": ["platformer"]},
+    {"id": "puzzle_platformer", "name": "Puzzle Platformer", "genre": "platformer", "strong": ["solve", "puzzle", "switch", "push"], "weak": ["jump", "block"], "genre_words": ["puzzle"]},
+    {"id": "run_and_gun", "name": "Run-and-Gun", "genre": "platformer", "strong": ["shoot+jump", "gun", "soldier"], "weak": ["robot", "alien"], "genre_words": ["run_and_gun"]},
+    {"id": "shmup", "name": "Shoot-'em-up", "genre": "shooter", "strong": ["fly", "ship", "pilot", "shmup"], "weak": ["shoot", "space", "alien"], "genre_words": ["shmup", "shooter"]},
+    {"id": "top_down_adventure", "name": "Top-Down Adventure", "genre": "topdown_adventure", "strong": ["top_down", "dungeon", "explore"], "weak": ["slash", "sword", "key"], "genre_words": ["adventure"]},
+    {"id": "metroidvania_lite", "name": "Explorer Platformer", "genre": "platformer", "strong": ["explore+jump", "map", "backtrack", "ability"], "weak": ["cave", "upgrade"], "genre_words": ["metroidvania"]},
+    {"id": "beat_em_up", "name": "Brawler", "genre": "topdown_adventure", "strong": ["punch", "brawl", "fight", "street"], "weak": ["thug", "city"], "genre_words": ["brawler", "beat_em_up"]},
+    {"id": "racing", "name": "Top-Down Racer", "genre": "sports", "strong": ["race", "kart", "lap", "drive"], "weak": ["speed", "track"], "genre_words": ["racing", "racer"]},
+    {"id": "sports", "name": "Arcade Sports", "genre": "sports", "strong": ["ball", "team", "goal", "match", "score"], "weak": ["athlete", "win"], "genre_words": ["sport"]},
+    {"id": "rpg_lite", "name": "Quest RPG-lite", "genre": "rpg", "strong": ["level_up", "quest", "party", "turn", "xp"], "weak": ["wizard", "stats"], "genre_words": ["rpg"]},
+    {"id": "maze_chase", "name": "Maze Chase", "genre": "puzzle", "strong": ["maze", "chase", "dot", "avoid"], "weak": ["ghost", "collect"], "genre_words": ["maze"]},
+    {"id": "endless_runner", "name": "Auto-Runner", "genre": "platformer", "strong": ["run", "endless", "dodge", "auto"], "weak": ["fast", "tense"], "genre_words": ["runner"]}
+  ],
+  "compat": {
+    "forest": {"hero": ["kid", "knight", "ninja", "wizard", "animal", "explorer"], "enemy": ["slime", "beast", "insect", "bat"]},
+    "cave": {"hero": ["explorer", "knight", "wizard", "animal", "kid", "robot"], "enemy": ["bat", "slime", "skeleton", "insect", "beast"]},
+    "castle": {"hero": ["knight", "ninja", "wizard", "kid", "animal"], "enemy": ["skeleton", "ghost", "bat", "slime"]},
+    "space": {"hero": ["pilot", "robot", "kid", "explorer"], "enemy": ["alien", "robot"]},
+    "ocean": {"hero": ["animal", "kid", "explorer", "pilot"], "enemy": ["slime", "beast"]},
+    "desert": {"hero": ["explorer", "knight", "kid", "animal", "racer"], "enemy": ["insect", "skeleton", "beast", "thug"]},
+    "city": {"hero": ["kid", "ninja", "robot", "racer", "athlete", "animal"], "enemy": ["thug", "robot"]},
+    "snow": {"hero": ["kid", "knight", "animal", "explorer", "racer", "athlete"], "enemy": ["beast", "slime", "ghost"]},
+    "volcano": {"hero": ["knight", "robot", "explorer", "kid", "wizard"], "enemy": ["slime", "beast", "skeleton"]},
+    "haunted": {"hero": ["kid", "knight", "wizard", "animal"], "enemy": ["ghost", "skeleton", "bat"]},
+    "sky": {"hero": ["pilot", "kid", "animal", "wizard"], "enemy": ["bat", "insect"]},
+    "factory": {"hero": ["robot", "kid", "ninja"], "enemy": ["robot", "slime"]}
+  },
+  "title_words": {
+    "forest": {"adj": ["Green", "Deep", "Hidden", "Wild", "Mossy"], "noun": ["Grove", "Thicket", "Glade", "Canopy", "Root"], "place": ["Grove", "Wildwood", "Glade"]},
+    "cave": {"adj": ["Dark", "Echo", "Deep", "Silent", "Hollow"], "noun": ["Cavern", "Tunnel", "Grotto", "Crystal", "Lantern"], "place": ["Depths", "Grotto", "Hollow"]},
+    "castle": {"adj": ["Iron", "Old", "Royal", "Stone", "Silver"], "noun": ["Keep", "Tower", "Citadel", "Crown", "Rampart"], "place": ["Keep", "Throne", "Ramparts"]},
+    "space": {"adj": ["Silent", "Distant", "Bright", "Lost", "Cold"], "noun": ["Orbit", "Comet", "Nebula", "Star", "Moon"], "place": ["Void", "Stars", "Nebula"]},
+    "ocean": {"adj": ["Blue", "Deep", "Sunken", "Tidal", "Coral"], "noun": ["Reef", "Tide", "Current", "Pearl", "Harbor"], "place": ["Deep", "Reef", "Tides"]},
+    "desert": {"adj": ["Golden", "Dry", "Burning", "Shifting", "Red"], "noun": ["Dune", "Mirage", "Oasis", "Sands", "Sun"], "place": ["Dunes", "Sands", "Oasis"]},
+    "city": {"adj": ["Neon", "Night", "Busy", "Steel", "Electric"], "noun": ["Street", "Avenue", "Skyline", "Alley", "Block"], "place": ["City", "Streets", "Skyline"]},
+    "snow": {"adj": ["Pale", "Frost", "White", "Cold", "Quiet"], "noun": ["Glacier", "Drift", "Hollow", "Peak", "Flurry"], "place": ["North", "Glacier", "Peaks"]},
+    "volcano": {"adj": ["Molten", "Ember", "Burning", "Ashen", "Scarlet"], "noun": ["Cinder", "Ember", "Crater", "Flame", "Forge"], "place": ["Crater", "Forge", "Flames"]},
+    "haunted": {"adj": ["Hollow", "Silent", "Pale", "Midnight", "Lonely"], "noun": ["Lantern", "Crypt", "Manor", "Shadow", "Candle"], "place": ["Crypt", "Manor", "Shadows"]},
+    "sky": {"adj": ["High", "Bright", "Floating", "Windy", "Golden"], "noun": ["Cloud", "Wind", "Isle", "Gale", "Feather"], "place": ["Clouds", "Skies", "Isles"]},
+    "factory": {"adj": ["Rusty", "Steel", "Humming", "Brass", "Busy"], "noun": ["Gear", "Engine", "Piston", "Foundry", "Circuit"], "place": ["Foundry", "Works", "Engines"]}
+  }
+}
