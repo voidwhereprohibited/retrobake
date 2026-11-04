@@ -1,4 +1,7 @@
-"""Turn a game-spec into AI prompts.
+"""Turn a game-spec into AI prompts (kept, but OFF: nothing in the app calls this).
+
+The default and only cover art is the code-drawn offline art in ``offline.py``. These templates
+stay so an opt-in AI art step can be added later without redoing the prompt guarding.
 
 Prompts are fixed templates in code. Spec choices are mapped through our own word tables (never
 copied), and the only user text (story, hero description) goes through

@@ -59,3 +59,30 @@ def test_with_title_rejects_bad_titles(title):
 def test_cover_convenience():
     png, art = AIService().cover(spec(), "Moon Frog", variant=2)
     assert from_png(png).width == art.width
+
+
+def test_offline_art_is_the_default_and_ai_prompts_are_off():
+    import ast
+    from pathlib import Path
+
+    import retrobake
+    from retrobake.ai import offline_art
+    from retrobake.security import DISCLAIMER
+
+    s = spec()
+    art = AIService().make_art(s)
+    assert art.source == "offline"
+    assert art.png == offline_art(s).to_png()
+    assert "online" not in DISCLAIMER
+    root = Path(retrobake.__file__).parent
+    for path in root.rglob("*.py"):
+        if path.name == "prompts.py":
+            continue
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.ImportFrom):
+                names = [node.module or ""] + [a.name for a in node.names]
+            elif isinstance(node, ast.Import):
+                names = [a.name for a in node.names]
+            else:
+                continue
+            assert not any(n.split(".")[-1] == "prompts" for n in names), path
