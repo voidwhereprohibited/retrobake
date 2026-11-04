@@ -1,4 +1,4 @@
-"""Turn franchise references in user text ("like Zelda meets Mario") into style and module hints.
+"""Turn franchise references in user text ("like Zelda") into style and module hints.
 
 The franchise names below are used ONLY to recognise what the user typed. They never appear in
 anything RetroBake outputs: the result carries generic genres, modules and style tags only, and
