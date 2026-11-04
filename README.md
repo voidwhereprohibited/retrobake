@@ -12,7 +12,7 @@ RetroBake is a free, open-source app for Windows and Linux. Pick a console, pick
 
 ## How it works
 1. **Pick a system** — NES or SNES
-2. **Pick a genre** — platformer, top-down adventure, and more on the way. Mix two for a mashup.
+2. **Pick a genre** — platformer, top-down adventure, and more on the way. Each game is one genre.
 3. **Describe your game** in your own words
 4. **Answer a few questions** — levels, difficulty, hero, setting
 5. **Get cover art and name ideas**, made by free AI — or type your own name
@@ -21,7 +21,7 @@ RetroBake is a free, open-source app for Windows and Linux. Pick a console, pick
 
 ## Planned features
 - NES and SNES from day one
-- Genre mixing and mashups
+- One clear genre per game, with ready-made templates such as action-adventure
 - Free AI cover art and title suggestions (no account or API key), with an offline fallback
 - One-click **Play in RetroArch**, plus a RetroBake playlist with box art in your RetroArch library
 - Runs on Windows and Linux with no terminal or setup
