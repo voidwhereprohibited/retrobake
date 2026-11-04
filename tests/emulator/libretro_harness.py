@@ -27,7 +27,9 @@ ENV_GET_CORE_ASSETS_DIRECTORY = 30
 ENV_GET_SAVE_DIRECTORY = 31
 DIR_QUERIES = (ENV_GET_SYSTEM_DIRECTORY, ENV_GET_CORE_ASSETS_DIRECTORY, ENV_GET_SAVE_DIRECTORY)
 DEVICE_JOYPAD = 1
+JOYPAD_A = 8
 JOYPAD_START = 3
+JOYPAD_RIGHT = 7
 JOYPAD_MASK = 256
 MEMORY_SYSTEM_RAM = 2
 
@@ -87,6 +89,7 @@ class Frontend:
         self.frame: tuple[bytes, int, int, int] | None = None
         self.frames_drawn = 0
         self.start_down = False
+        self.held: set[int] = set()  # libretro joypad ids held down (JOYPAD_*)
         self._dirbuf = C.create_string_buffer(str(workdir).encode())
         self._keep: list = []
         self._cbs = (
@@ -135,9 +138,10 @@ class Frontend:
     def _state(self, port: int, device: int, index: int, button: int) -> int:
         if port != 0 or (device & 0xFF) != DEVICE_JOYPAD:
             return 0
+        held = self.held | ({JOYPAD_START} if self.start_down else set())
         if button == JOYPAD_MASK:
-            return (1 << JOYPAD_START) if self.start_down else 0
-        return 1 if (button == JOYPAD_START and self.start_down) else 0
+            return sum(1 << b for b in held)
+        return 1 if button in held else 0
 
     # --- driving the core ------------------------------------------------------
     def load(self, rom: Path) -> dict:
@@ -176,13 +180,16 @@ class Frontend:
         for _ in range(frames):
             self.lib.retro_run()
 
-    def signature(self, system: str) -> list[int] | None:
+    def ram(self, offset: int, length: int) -> list[int] | None:
+        """``length`` bytes of system RAM from ``offset``, or None if the core hides it."""
         ptr = self.lib.retro_get_memory_data(MEMORY_SYSTEM_RAM)
         size = self.lib.retro_get_memory_size(MEMORY_SYSTEM_RAM)
-        off = SIGNATURE_OFFSET[system]
-        if not ptr or size < off + 4:
+        if not ptr or size < offset + length:
             return None
-        return list(C.string_at(ptr + off, 4))
+        return list(C.string_at(ptr + offset, length))
+
+    def signature(self, system: str) -> list[int] | None:
+        return self.ram(SIGNATURE_OFFSET[system], 4)
 
     def close(self) -> None:
         self.lib.retro_unload_game()

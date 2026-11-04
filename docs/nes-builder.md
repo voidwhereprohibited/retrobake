@@ -9,6 +9,8 @@ rom_bytes = result.rom  # complete iNES file, write it with a .nes extension
 
 ## API
 - `bake(spec, *, cc65_dir=None, limits=None) -> NesRom`
+  - Side-view jumping specs (`modules.movement == "side_jump"`) go to the platformer engine
+    below; anything else gets the "hello" engine (`bake_hello`, same arguments).
   - `NesRom(rom: bytes, title: str, engine: str, mapper: str, network_isolated: bool)`
   - Runs `retrobake.spec.validate`, then `security.sanitize("title")` + `check_title`, then
     ca65 + ld65 through `security.run_build` in a `BuildWorkspace`. Deterministic: the same
@@ -42,20 +44,29 @@ release bundles the matching folder as `toolchains/cc65/bin` plus `templates/nes
 
 ## Platformer engine (`builders/nes_platformer.py`, `templates/nes/platformer/`)
 `nes_platformer.bake(spec)` turns a `side_jump` spec into a playable NROM-256 ROM (32K PRG,
-8K CHR, 40976 bytes). `nes.bake` still makes the "hello" ROM; switching the app over is a
-separate decision.
+8K CHR, 40976 bytes). `nes.bake` uses it for every `side_jump` spec.
 - **Engine:** RetroBake's own ca65 assembly (`startup.s`, `game.s`). It calls the vendored
   nesdoug/neslib library (`third_party/nesdoug/LIB`, included unchanged) and plays music through
   FamiStudio's sound engine (`third_party/famistudio`). There is no C, so only ca65 and ld65 are
   needed; `startup.s` supplies the few cc65 runtime symbols neslib uses (`sp`, `popa`, `popax`).
 - **Gameplay:** title screen, then Start. Walk with left/right and jump with A (3 tiles high,
-  5 long). The screen flips every 16 tiles. Solid tiles, one-way platforms, spikes and pits
-  restart the level. If there's a key, it opens doors. Reaching the goal flag goes to the next
-  level; after the last level it goes back to the title. Enemies and pickups other than the key
-  aren't in the engine yet.
+  5 long). The camera scrolls smoothly, pixel by pixel: both nametables form a 512-pixel
+  ring and each frame streams at most one missing metatile column through neslib's VRAM
+  update buffer (two 24-tile vertical runs). Solid tiles and one-way platforms block; spikes,
+  pits and enemies cost a life (three hearts, top left) and restart the level; with no lives
+  left it goes back to the title. If there's a key, it opens doors. Reaching the goal flag
+  goes to the next level; after the last level it goes back to the title.
+- **Enemies:** up to 8 per level. Walkers (spec walkers and hoppers) walk slowly and turn at
+  walls and ledges. Patrollers (spec flyers) pace 3 columns either side of where they start,
+  ignoring ledges. In `stomp` combat games, landing on an enemy defeats it and bounces the
+  hero; in other games enemies can only be avoided. Coins, hearts, extra lives, bosses and
+  shops aren't drawn by this engine yet.
+- **QA block:** `$07F0-$07F7` = lives, camera x (lo, hi), enemies alive, level, hero x (lo,
+  hi), hero y. Emulator tests read it.
 - **Data the builder writes** (the template `.incbin`s them; no user text becomes assembly):
   - `levels.bin` from `spec.platformer.generate_levels`, as described in `level_data`: a
-    column map plus up to 42 unique nibble-packed columns per level.
+    9-byte header (with a stomp flag), the enemy list, a column map and up to 42 unique
+    nibble-packed columns per level.
   - `text.bin` title records.
   - `game.chr`: original placeholder art drawn in `nes_platformer_art.py`.
   - FamiStudio's NTSC note tables, computed and checked against upstream's SHA-256.
@@ -65,4 +76,8 @@ separate decision.
 - **Tests:** `tests/builders/test_nes_platformer.py` checks the vendored hashes, the note
   tables, the level round-trip and the iNES header. It also boots the ROM in
   `tests/builders/cpu6502.py` (full official 6502 opcode set plus a small NES bus): title,
-  Start, walk, jump, land, music writes.
+  Start, walk, jump, land, music writes, smooth scrolling with every column in view drawn,
+  stomping (and getting hurt in avoid-only games), walker/patroller turning, lives, respawn
+  and game over. `tests/emulator/test_platformer_emulator.py` plays the baked ROM in the
+  FCEUmm libretro core through `tests/emulator/play_platformer.py` (skips without the core;
+  set `RETROBAKE_FCEUMM_CORE`).
