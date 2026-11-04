@@ -124,6 +124,11 @@ jobs:
           python-version: "3.12"
       # qa: boots self-test ROMs (+ baked ROMs in RETROBAKE_SMOKE_ROMS once engines land)
       # on the libretro cores players use: Mesen + FCEUmm (NES), Snes9x (SNES).
+      - name: Cache the pinned libretro cores (re-verified by sha256 before every load)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: tests/emulator/.cores
+          key: cores-${{ runner.os }}-${{ hashFiles('tests/emulator/cores.lock.json') }}
       - name: Headless emulator boot test
         run: python tests/emulator/run_smoke.py --fetch-cores
       - name: Upload boot report
@@ -247,6 +252,11 @@ jobs:
             git fetch -q --depth 1 https://github.com/${{ github.repository }}.git agent/qa
             git checkout FETCH_HEAD -- tests/emulator
           fi
+      - name: Cache the pinned libretro cores (re-verified by sha256 before every load)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: tests/emulator/.cores
+          key: cores-${{ runner.os }}-${{ hashFiles('tests/emulator/cores.lock.json') }}
       - name: Boot baked SNES ROM on Snes9x (signature, Start -> gameplay)
         run: python tests/emulator/run_smoke.py --fetch-cores --roms baked --report baked/smoke-report.json
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -287,12 +297,18 @@ jobs:
       - run: python -m pip install -e ".[dev]"
       - run: python -m pytest tests/builders/test_nes.py -v
       - run: python tools/bake_sample_nes.py baked/sample-platformer.nes
+      - name: Cache the pinned libretro cores (re-verified by sha256 before every load)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: tests/emulator/.cores
+          key: cores-${{ runner.os }}-${{ hashFiles('tests/emulator/cores.lock.json') }}
       - name: Boot baked NES ROM on Mesen + FCEUmm (signature, Start -> gameplay)
         run: python tests/emulator/run_smoke.py --fetch-cores --roms baked --report baked/smoke-report.json
       - name: Play the platformer on FCEUmm (scrolling, enemies, lives)
         shell: bash
         run: |
           ext=so; [ "$RUNNER_OS" = Windows ] && ext=dll
+          RETROBAKE_REQUIRE_PINNED_CORE=1 \
           RETROBAKE_FCEUMM_CORE="tests/emulator/.cores/fceumm_libretro.$ext" \
             python -m pytest tests/emulator/test_platformer_emulator.py -v -s
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

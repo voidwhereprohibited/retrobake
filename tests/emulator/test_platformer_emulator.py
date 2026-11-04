@@ -1,7 +1,8 @@
 """The baked NES platformer, played in the FCEUmm libretro core (the one RetroArch uses).
 
 Needs cc65 and a FCEUmm core; skips without them. Set RETROBAKE_FCEUMM_CORE to the core's
-path, or keep it where RetroArch installs it (~/.config/retroarch/cores/).
+path, or keep it where RetroArch installs it (~/.config/retroarch/cores/). With
+RETROBAKE_REQUIRE_PINNED_CORE=1 (CI) the core must match cores.lock.json before it is loaded.
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from run_smoke import verify_core
 
 from retrobake import spec as gs
 from retrobake.builders import nes
@@ -40,6 +42,8 @@ def _rom(tmp_path: Path) -> Path:
 @pytest.mark.skipif(_core() is None, reason="no FCEUmm libretro core here")
 def test_platformer_plays_in_fceumm(tmp_path):
     rom = _rom(tmp_path)
+    if os.environ.get("RETROBAKE_REQUIRE_PINNED_CORE") == "1":
+        verify_core(_core(), "fceumm")  # raises (test fails) before the core is loaded
     cmd = [sys.executable, str(HERE / "play_platformer.py"), "--core", str(_core())]
     out = subprocess.run(  # noqa: S603 - our own script, fixed arguments
         [*cmd, "--rom", str(rom)], capture_output=True, text=True, timeout=120, check=True

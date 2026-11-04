@@ -1,0 +1,46 @@
+{
+  "comment": "Pinned libretro cores for the emulator tests: RetroArch 1.22.2 stable core packs (buildbot, 2025-11-20). run_smoke.py --fetch-cores checks the archive sha256 before extracting and each core's sha256 before loading, and refuses on any mismatch.",
+  "release": "1.22.2",
+  "archives": {
+    "linux": {
+      "url": "https://buildbot.libretro.com/stable/1.22.2/linux/x86_64/RetroArch_cores.7z",
+      "size": 274237400,
+      "sha256": "4b7ed8dc97d4bf035fce182c64b5658c7662e2e9e5d42129538afbd4b6096307"
+    },
+    "windows": {
+      "url": "https://buildbot.libretro.com/stable/1.22.2/windows/x86_64/RetroArch_cores.7z",
+      "size": 229761684,
+      "sha256": "86b871e11b9b4772ac644b40a38f2c8e9449da1f355eae7da08aa061148547b0"
+    }
+  },
+  "cores": {
+    "linux": {
+      "fceumm": {
+        "member": "RetroArch-Linux-x86_64/RetroArch-Linux-x86_64.AppImage.home/.config/retroarch/cores/fceumm_libretro.so",
+        "sha256": "e7a17d1a5dacaeb7e02067f73aafab168f6a249a5dc0059ff16a5df44784d65c"
+      },
+      "mesen": {
+        "member": "RetroArch-Linux-x86_64/RetroArch-Linux-x86_64.AppImage.home/.config/retroarch/cores/mesen_libretro.so",
+        "sha256": "552f8ab6ac1fd08bd555f589eb999be73a469c79ccfa929f884adb2cf3366b43"
+      },
+      "snes9x": {
+        "member": "RetroArch-Linux-x86_64/RetroArch-Linux-x86_64.AppImage.home/.config/retroarch/cores/snes9x_libretro.so",
+        "sha256": "f7eb400380a18e94b996acfae5a22fa4261c8ff90fa24c213336548925036442"
+      }
+    },
+    "windows": {
+      "fceumm": {
+        "member": "RetroArch-Win64/cores/fceumm_libretro.dll",
+        "sha256": "88daadbb6f277144b97f363d489c4a91337c674d1393e5ab0955591cc21f3750"
+      },
+      "mesen": {
+        "member": "RetroArch-Win64/cores/mesen_libretro.dll",
+        "sha256": "3c95a20cbdd8882e2fe12ca26ee88dde809c12f8cfd11f45e1436b17000ce972"
+      },
+      "snes9x": {
+        "member": "RetroArch-Win64/cores/snes9x_libretro.dll",
+        "sha256": "d0ed1140957a30d893c5eaa573f9edb2ded7515a6a8c92e08c21e02c10432793"
+      }
+    }
+  }
+}
