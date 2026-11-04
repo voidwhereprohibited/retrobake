@@ -43,7 +43,6 @@ ruff check src tests
 | `tests/` | Automated tests |
 | `packaging/` | Windows installer and Linux AppImage build files |
 | `docs/` | Plan and design notes (`docs/PLAN.md` is the source of truth) |
-| `coordination/` | The agent task board |
 | `.github/` | CI, security scans and Dependabot |
 
 ## Pull requests

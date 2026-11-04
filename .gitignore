@@ -34,3 +34,8 @@ themes/_work/
 /themes/
 build/
 dist/
+
+# AI agent working files (kept outside the repo)
+CLAUDE.md
+.claude/
+coordination/
