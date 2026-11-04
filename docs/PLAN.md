@@ -33,10 +33,10 @@ Owner: Roger (GitHub: voidwhereprohibited). Repo: voidwhereprohibited/retrobake 
 - SNES toolchain: **PVSnesLib** (816-tcc / wla-dx).
 - Toolchains are bundled with the app so users install nothing.
 
-## AI (free)
-- **Pollinations.ai** (free, open source, no key) for cover art (text-to-image) and name suggestions (text).
-- All wizard answers are turned into one structured prompt by RetroBake — the user never writes prompts.
-- Backup: Cloudflare Workers AI free tier (optional, user key). Offline fallback: procedural pixel-art cover from templates + title font.
+## Cover art and names (offline, no AI)
+- Decision (Roger, 11/01): "No AI". RetroBake needs no account, key or online service.
+- Cover art: procedural pixel-art cover from the wizard answers + RetroBake's title font, made on the user's PC.
+- Names: original name ideas built offline from the wizard answers; the user can always type their own.
 - Optional, later: in-game sprite/tileset generation, reduced to NES/SNES palettes and tile limits.
 
 ## RetroArch integration
@@ -55,7 +55,7 @@ Owner: Roger (GitHub: voidwhereprohibited). Repo: voidwhereprohibited/retrobake 
 
 ## Security (approved five-part plan)
 1. **Input cleanup:** length limits, strip control/odd characters, user text is data only, never executed or interpolated into build scripts.
-2. **AI guarding:** user text wrapped in a fixed prompt template (anti-injection), Pollinations safe mode on, outputs validated (image size/type, name length/charset).
+2. **AI guarding:** user text wrapped in a fixed prompt template (anti-injection), outputs validated (image size/type, name length/charset).
 3. **Sandboxed builds:** only our templates, temp working dir, no shell interpolation, size + time limits, no network during build.
 4. **Safe releases:** signed builds, dependency scanning (Dependabot/pip-audit), CodeQL, SECURITY.md for private reports.
 5. **Disclaimer:** users are responsible for what they create (README + in-app).
@@ -71,6 +71,6 @@ Owner: Roger (GitHub: voidwhereprohibited). Repo: voidwhereprohibited/retrobake 
 - **M1** Toolchains bundled; "hello world" NES + SNES ROM baked from the app.
 - **M2** Platformer engine NES + SNES, wizard v1.
 - **M3** Top-down adventure engine; genre mixing v1.
-- **M4** Pollinations cover art + names; offline fallback.
+- **M4** Offline cover art + name ideas (no AI, no account, no network).
 - **M5** RetroArch Play Now, playlist, thumbnails, setup helper.
 - **M6** Security hardening + signed Windows installer + AppImage; public v0.1.

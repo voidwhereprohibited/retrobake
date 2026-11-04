@@ -22,7 +22,7 @@ HOW TO WORK WITH ROGER
 
 RULES THAT NEVER BEND
 - No copyrighted characters, names, logos or assets (Nintendo, Marvel, etc.). "Like Zelda meets Mario" becomes style and mechanics with original heroes only. Franchises never appear in menus or marketing.
-- Free and open source, with no paid service required. Use Pollinations.ai (free, no key) for cover art and names, with an offline pixel-art fallback.
+- Free and open source, with no paid service required. Cover art and names are made offline (procedural pixel art and name ideas); no account, key or online AI.
 - Built for average, non-technical users: no terminal, plain English. Windows and Linux are both first-class.
 - Top-notch security: sanitize all input, guard AI prompts, sandbox builds, sign releases, and include the user-responsibility disclaimer.
 - Never test on Roger's own PC. Use CI or a clean VM.
