@@ -14,7 +14,15 @@ or POLLINATIONS_KEY. Without a key it falls back to the keyless Classic API, whi
 
 Usage: python3 tools/theme_art/make_previews.py [style-id ...]
 """
-import io, json, os, subprocess, sys, time, urllib.parse, urllib.request
+
+import io
+import json
+import os
+import subprocess
+import sys
+import time
+import urllib.parse
+import urllib.request
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
@@ -41,16 +49,26 @@ def fetch(prompt, w, h, seed, dest):
     q = urllib.parse.quote(prompt[:1800], safe="")
     if k:
         url = f"https://gen.pollinations.ai/image/{q}?" + urllib.parse.urlencode(
-            {"model": MODEL, "width": w, "height": h, "seed": seed, "nologo": "true", "safe": "true"})
+            {
+                "model": MODEL,
+                "width": w,
+                "height": h,
+                "seed": seed,
+                "nologo": "true",
+                "safe": "true",
+            }
+        )
         hdr = {"Authorization": f"Bearer {k}"}
     else:
         url = f"https://image.pollinations.ai/prompt/{q}?" + urllib.parse.urlencode(
-            {"width": w, "height": h, "seed": seed, "nologo": "true"})
+            {"width": w, "height": h, "seed": seed, "nologo": "true"}
+        )
         hdr = {}
     for attempt in range(12):
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "RetroBake-theme-art", **hdr})
-            with urllib.request.urlopen(req, timeout=240) as r:
+            hdrs = {"User-Agent": "RetroBake-theme-art", **hdr}
+            req = urllib.request.Request(url, headers=hdrs)  # noqa: S310 - fixed https host
+            with urllib.request.urlopen(req, timeout=240) as r:  # noqa: S310  # nosec B310 - fixed https Pollinations host
                 data = r.read()
             im = Image.open(io.BytesIO(data)).convert("RGB")  # validates it is an image
             dest.parent.mkdir(parents=True, exist_ok=True)
@@ -60,26 +78,30 @@ def fetch(prompt, w, h, seed, dest):
                 time.sleep(46)
             return dest
         except Exception as e:  # rate limit / busy: back off and retry
-            print(f"  retry {attempt+1}: {e}", flush=True)
+            print(f"  retry {attempt + 1}: {e}", flush=True)
             time.sleep(50 if not k else 10)
     raise SystemExit(f"failed to generate {dest}")
 
 
 def upscale(src, dest):
     if not dest.exists():
-        subprocess.run([str(ESRGAN), "-i", str(src), "-o", str(dest), "-n", "realesrgan-x4plus"],
-                       check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(  # noqa: S603 - fixed local binary, argv list, no shell
+            [str(ESRGAN), "-i", str(src), "-o", str(dest), "-n", "realesrgan-x4plus"],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
     return dest
 
 
 def cover(im, w, h):
     s = max(w / im.width, h / im.height)
     im = im.resize((round(im.width * s), round(im.height * s)), Image.LANCZOS)
-    l, t = (im.width - w) // 2, (im.height - h) // 2
-    return im.crop((l, t, l + w, t + h))
+    left, top = (im.width - w) // 2, (im.height - h) // 2
+    return im.crop((left, top, left + w, top + h))
 
 
-def cut_icons(sheet, n):
+def cut_icons(sheet, n):  # noqa: C901 - single flood-fill pass, kept inline for clarity
     """Split a 3x2 sheet into n 256x256 RGBA icons.
 
     The model's "magenta" key drifts (often hot pink ~(230,37,146)), so each cell's
@@ -90,25 +112,33 @@ def cut_icons(sheet, n):
     for i in range(n):
         cell = sheet.crop(((i % 3) * cw, (i // 3) * ch, (i % 3 + 1) * cw, (i // 3 + 1) * ch))
         w, h = cell.size
-        border = [cell.getpixel((x, y)) for x in range(0, w, 8) for y in (0, 1, h - 2, h - 1)] + \
-                 [cell.getpixel((x, y)) for y in range(0, h, 8) for x in (0, 1, w - 2, w - 1)]
+        border = [cell.getpixel((x, y)) for x in range(0, w, 8) for y in (0, 1, h - 2, h - 1)] + [
+            cell.getpixel((x, y)) for y in range(0, h, 8) for x in (0, 1, w - 2, w - 1)
+        ]
         border.sort(key=sum)
         bg = border[len(border) // 2]
         mask = Image.new("L", (w, h), 0)
         px, mp = cell.load(), mask.load()
 
-        def near(c, t):
+        def near(c, t, bg=bg):
             return (c[0] - bg[0]) ** 2 + (c[1] - bg[1]) ** 2 + (c[2] - bg[2]) ** 2 < t * t
-        stack = [(x, y) for x in range(w) for y in (0, h - 1)] + [(x, y) for y in range(h) for x in (0, w - 1)]
+
+        stack = [(x, y) for x in range(w) for y in (0, h - 1)] + [
+            (x, y) for y in range(h) for x in (0, w - 1)
+        ]
         while stack:
             x, y = stack.pop()
             if mp[x, y] or not near(px[x, y], 95):
                 continue
             mp[x, y] = 255
-            if x > 0: stack.append((x - 1, y))
-            if x < w - 1: stack.append((x + 1, y))
-            if y > 0: stack.append((x, y - 1))
-            if y < h - 1: stack.append((x, y + 1))
+            if x > 0:
+                stack.append((x - 1, y))
+            if x < w - 1:
+                stack.append((x + 1, y))
+            if y > 0:
+                stack.append((x, y - 1))
+            if y < h - 1:
+                stack.append((x, y + 1))
         for y in range(h):
             for x in range(w):
                 if not mp[x, y] and near(px[x, y], 40):
@@ -126,8 +156,10 @@ def cut_icons(sheet, n):
 
 
 def font(size):
-    for f in ("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-              "/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf"):
+    for f in (
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf",
+    ):
         if Path(f).exists():
             return ImageFont.truetype(f, size)
     return ImageFont.load_default()
@@ -147,10 +179,17 @@ def contact_sheet(wall, icons, names, style, draft):
     for i, ic in enumerate(icons):
         sz = 176 if i == 1 else 120
         icx = ic.resize((sz, sz), Image.LANCZOS)
-        cx = x0 + i * 230 + (0 if i < 2 else 60)
+        cx = x0 + i * 230 + (0 if i < 2 else 60)  # noqa: PLR2004 - layout offset
         im.alpha_composite(icx, (cx - sz // 2, y0 - sz // 2))
     text(d, (x0 + 230 - 90, y0 + 100), names[1].title(), font(34))
-    items = ["Load Core", "Load Content", "Online Updater", "Information", "Configuration File", "Quit RetroArch"]
+    items = [
+        "Load Core",
+        "Load Content",
+        "Online Updater",
+        "Information",
+        "Configuration File",
+        "Quit RetroArch",
+    ]
     for j, it in enumerate(items):
         sz = 46 if j == 0 else 36
         icx = icons[min(j, len(icons) - 1)].resize((64, 64), Image.LANCZOS)
@@ -178,16 +217,28 @@ def run(style):
     cover(master, 1920, 1200).save(d / "1920x1200.png", optimize=True)
     cover(master, 1920, 1080).save(d / "1920x1080.png", optimize=True)
     subj = STYLES["icon_subjects"]
-    ip = STYLES["icon_template"].format(icons="; ".join(f"{i+1}) {s}" for i, (_, s) in enumerate(subj)),
-                                        icon_style=style["icon_style"])
-    sheet = Image.open(fetch(ip, 1536 if not draft else 1024, 1024 if not draft else 683, seed, WORK / sid / "icons_raw.png"))
+    ip = STYLES["icon_template"].format(
+        icons="; ".join(f"{i + 1}) {s}" for i, (_, s) in enumerate(subj)),
+        icon_style=style["icon_style"],
+    )
+    sheet = Image.open(
+        fetch(
+            ip,
+            1536 if not draft else 1024,
+            1024 if not draft else 683,
+            seed,
+            WORK / sid / "icons_raw.png",
+        )
+    )
     icons = cut_icons(sheet, len(subj))
     idir = ROOT / "themes" / sid / "icons_sample"
     idir.mkdir(parents=True, exist_ok=True)
-    for (n, _), ic in zip(subj, icons):
+    for (n, _), ic in zip(subj, icons, strict=False):
         ic.save(idir / f"{n}.png", optimize=True)
     OUT.mkdir(parents=True, exist_ok=True)
-    contact_sheet(master, icons, [n for n, _ in subj], style, draft).save(OUT / f"{sid}.png", optimize=True)
+    contact_sheet(master, icons, [n for n, _ in subj], style, draft).save(
+        OUT / f"{sid}.png", optimize=True
+    )
     print(f"  contact sheet -> themes/_previews/{sid}.png", flush=True)
 
 
