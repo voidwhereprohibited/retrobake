@@ -1,4 +1,4 @@
-"""Bake RetroBake's sample "hello" NES ROM (used by CI and qa's emulator smoke test).
+"""Bake RetroBake's sample NES ROM (the platformer; used by CI and qa's emulator smoke test).
 
     python tools/bake_sample_nes.py OUT.nes
 """
