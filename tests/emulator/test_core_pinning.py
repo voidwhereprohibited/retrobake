@@ -23,6 +23,53 @@ def test_lock_pins_fixed_https_release_builds():
         assert all(len(c["sha256"]) == 64 for c in lock["cores"][plat].values())
 
 
+def test_per_core_zip_pins_are_official_and_double_hashed():
+    lock = run_smoke.load_lock()
+    zips = [c for p in lock["cores"].values() for c in p.values() if "zip_sha256" in c]
+    assert zips  # Windows snes9x (see the lock's comment)
+    for pin in zips:
+        assert pin["url"].startswith("https://buildbot.libretro.com/")
+        assert len(pin["zip_sha256"]) == 64 and len(pin["sha256"]) == 64
+        assert pin["built"] and pin["version"] and pin["commit"] and pin["comment"]
+
+
+def _zip_lock(zip_sha: str, core_sha: str) -> dict:
+    return {
+        "url": "https://example.invalid/c.zip",
+        "zip_sha256": zip_sha,
+        "sha256": core_sha,
+        "member": "snes9x_libretro.dll",
+        "version": "t",
+        "built": "t",
+    }
+
+
+def _zip_blob(payload: bytes) -> bytes:
+    import io
+    import zipfile
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("snes9x_libretro.dll", payload)
+    return buf.getvalue()
+
+
+def test_zip_core_mismatch_is_refused(tmp_path, monkeypatch):
+    blob = _zip_blob(b"core")
+    monkeypatch.setattr(run_smoke, "download", lambda url, dest: dest.write_bytes(blob))
+    cores = tmp_path / "cores"
+    cores.mkdir()
+    with pytest.raises(CoreVerifyError, match="refusing to extract"):
+        run_smoke.fetch_zip_core(cores, "snes9x", _zip_lock("0" * 64, "0" * 64))
+    zsha = hashlib.sha256(blob).hexdigest()
+    with pytest.raises(CoreVerifyError, match="not the pinned build"):
+        run_smoke.fetch_zip_core(cores, "snes9x", _zip_lock(zsha, "1" * 64))
+    assert not list(cores.iterdir())
+    good = _zip_lock(zsha, hashlib.sha256(b"core").hexdigest())
+    run_smoke.fetch_zip_core(cores, "snes9x", good)
+    assert core_file(cores, "snes9x").read_bytes() == b"core"
+
+
 def _fake_lock(tmp_path: Path, archive_sha: str, core_sha: str) -> Path:
     plat = core_ext()[0]
     cores = {c: {"member": f"cores/{c}", "sha256": core_sha} for c in ("fceumm", "mesen", "snes9x")}

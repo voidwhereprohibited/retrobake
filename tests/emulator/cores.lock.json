@@ -38,8 +38,15 @@
         "sha256": "3c95a20cbdd8882e2fe12ca26ee88dde809c12f8cfd11f45e1436b17000ce972"
       },
       "snes9x": {
-        "member": "RetroArch-Win64/cores/snes9x_libretro.dll",
-        "sha256": "d0ed1140957a30d893c5eaa573f9edb2ded7515a6a8c92e08c21e02c10432793"
+        "comment": "Overrides the 1.22.2 pack: its snes9x (1.63 5a40cd5) crashes intermittently in retro_load_game on Windows CI (access violation; plausibly the negative-shift UB in ScoreLoROM fixed by libretro/snes9x 2586ad6). No stable or dated build contains that fix and the dated nightly RetroArch.7z packs carry no cores, so this pins the buildbot nightly per-core zip by sha256; if the URL moves, fetch fails closed.",
+        "url": "https://buildbot.libretro.com/nightly/windows/x86_64/latest/snes9x_libretro.dll.zip",
+        "built": "2026-11-04T06:16:40Z",
+        "version": "1.63 fae2fea",
+        "commit": "libretro/snes9x@fae2fea",
+        "zip_size": 1316253,
+        "zip_sha256": "a4b79dc576ff50bb33e5caea15e50a5b66b8ee698511385bd39238b1dae9a997",
+        "member": "snes9x_libretro.dll",
+        "sha256": "a720aa5a94569828adc9aa879ee13d2d4776e1dc80be9cf2d4401fc6c279c7a4"
       }
     }
   }

@@ -25,6 +25,7 @@ import subprocess
 import sys
 import tempfile
 import urllib.request
+import zipfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -86,6 +87,24 @@ def extract_member(archive: Path, member: str) -> bytes:
     return proc.stdout
 
 
+def fetch_zip_core(cores_dir: Path, core: str, pin: dict) -> None:
+    """Fetch a core pinned to its own buildbot zip; both zip and core are sha256-checked."""
+    with tempfile.TemporaryDirectory(prefix="rb-core-") as tmp:
+        archive = Path(tmp) / "core.zip"
+        download(pin["url"], archive)
+        got = sha256_file(archive)
+        if got != pin["zip_sha256"]:
+            raise CoreVerifyError(
+                f"{pin['url']}: sha256 {got} != pinned {pin['zip_sha256']}; refusing to extract"
+            )
+        with zipfile.ZipFile(archive) as zf:
+            data = zf.read(pin["member"])
+    if hashlib.sha256(data).hexdigest() != pin["sha256"]:
+        raise CoreVerifyError(f"{pin['member']} in {pin['url']} is not the pinned build")
+    core_file(cores_dir, core).write_bytes(data)
+    print(f"fetched {pin['member']} sha256={pin['sha256']} ({pin['version']}, {pin['built']})")
+
+
 def fetch_cores(cores_dir: Path) -> None:
     plat, ext = core_ext()
     lock = load_lock()
@@ -103,6 +122,11 @@ def fetch_cores(cores_dir: Path) -> None:
         missing.append(core)
     if not missing:
         print(f"pinned cores already present in {cores_dir}")
+        return
+    for core in [c for c in missing if "zip_sha256" in lock["cores"][plat][c]]:
+        fetch_zip_core(cores_dir, core, lock["cores"][plat][core])
+        missing.remove(core)
+    if not missing:
         return
     pack = lock["archives"][plat]
     with tempfile.TemporaryDirectory(prefix="rb-cores-") as tmp:
