@@ -55,7 +55,7 @@ class Analysis:
 
 
 def _hex(c):
-    return "#{:02x}{:02x}{:02x}".format(*tuple(int(v) for v in c[:3]))
+    return "#{:02x}{:02x}{:02x}".format(*(int(v) for v in c[:3]))
 
 
 def _axis_aligned(im) -> float:
