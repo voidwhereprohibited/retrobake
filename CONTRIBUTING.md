@@ -24,7 +24,8 @@ cd retrobake
 ```
 
 ```
-python -m pip install -e ".[dev]"
+python -m pip install --require-hashes -r requirements/dev.txt
+python -m pip install --no-deps --no-build-isolation -e .
 ```
 
 ```
@@ -43,7 +44,6 @@ ruff check src tests
 | `tests/` | Automated tests |
 | `packaging/` | Windows installer and Linux AppImage build files |
 | `docs/` | Plan and design notes (`docs/PLAN.md` is the source of truth) |
-| `coordination/` | The agent task board |
 | `.github/` | CI, security scans and Dependabot |
 
 ## Pull requests

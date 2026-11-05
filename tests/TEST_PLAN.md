@@ -9,15 +9,17 @@ Never on Roger's own PC.
 |---|---|---|
 | Unit | `tests/<area>/` (pytest, every push) | each module's API and edge cases |
 | Boot smoke | `tests/emulator/run_smoke.py` (CI job "Bake sample ROMs + emulator smoke test", Linux + Windows) | every ROM loads, draws, reaches gameplay, never crashes or hangs |
-| Bake matrix (M1+, task #9) | same job, `RETROBAKE_SMOKE_ROMS=<dir>` | every genre and every allowed mashup, on NES and SNES |
+| Bake matrix (M1+, task #9) | same job, `RETROBAKE_SMOKE_ROMS=<dir>` | every available genre, on NES and SNES |
 | Fuzz | `tests/fuzz/test_fuzz_inputs.py` (every push, fixed seeds; `RETROBAKE_FUZZ_N` for longer runs) | junk / huge / hostile wizard text never crashes, hangs, or escapes the sandbox |
 | VM checks | clean Ubuntu + Windows VMs, release candidates only | real RetroArch launch (native, Flatpak, Snap, Steam), installer, signatures |
 
 ## Boot smoke test
 
 `libretro_harness.py` is a ~200-line stdlib-only (ctypes) headless libretro frontend.
-It loads the same cores players use in RetroArch, downloaded fresh in CI from the libretro
-buildbot (sha256 logged): NES = Mesen + FCEUmm, SNES = Snes9x. Each ROM x core runs in a
+It loads the same cores players use in RetroArch: NES = Mesen + FCEUmm, SNES = Snes9x, from
+the RetroArch 1.22.2 stable core pack pinned in `tests/emulator/cores.lock.json`. The pack's
+sha256 is checked before it is unpacked and each core's sha256 before it is loaded; a
+mismatch stops the run (`test_core_pinning.py` covers that path). Each ROM x core runs in a
 child process with a 120 s timeout, so a crash or hang is a clean FAIL, not a dead runner.
 
 Script per boot: 180 frames idle -> read signature -> hold Start 10 frames -> 180 frames

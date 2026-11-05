@@ -75,6 +75,28 @@ def test_level_data_round_trips(seed):
         assert got["key"] == (keys[0] if keys else None)
 
 
+def test_level_data_carries_enemies_and_the_stomp_flag():
+    pack = generate_levels(_spec())
+    want = [plat._enemies(level) for level in pack.levels]
+    assert any(want)
+    for stomp in (True, False):
+        decoded = plat.decode_level_data(plat.level_data(pack, stomp=stomp))
+        assert [d["enemies"] for d in decoded] == want
+        assert all(d["stomp"] is stomp for d in decoded)
+    for enemies in want:
+        assert len(enemies) <= plat.MAX_ENEMIES
+        assert all(kind in (plat.WALKER, plat.PATROLLER) for _, _, kind in enemies)
+
+
+def test_enemy_list_is_capped_and_spread_out():
+    level = _flat_level([(lv.WALKER, x, 9) for x in range(4, 100, 4)], width=112)
+    enemies = plat._enemies(level)
+    assert len(enemies) == plat.MAX_ENEMIES
+    assert enemies[0][0] == 4 and enemies[-1][0] > 80
+    flyer = _flat_level([(lv.FLYER, 6, 7), (lv.COIN, 7, 9)])
+    assert plat._enemies(flyer) == [(6, 7, plat.PATROLLER)]
+
+
 def test_level_data_rejects_what_the_engine_cannot_hold():
     pack = generate_levels(_spec())
     level = pack.levels[0]
@@ -88,7 +110,9 @@ def test_art_fits_the_pattern_tables():
     assert len(chr_rom) == 8192
     meta = chr_rom[art.META_BASE * 16 : (art.META_BASE + 32) * 16]
     assert any(meta[64:])  # ground is not blank
-    assert any(chr_rom[4096 : 4096 + 7 * 16])  # hero, key and flag sprites
+    sprites = chr_rom[4096:]
+    for tile in range(16):  # hero, key, flag, heart, walker, patroller
+        assert any(sprites[tile * 16 : tile * 16 + 16]), tile
 
 
 def test_only_side_jump_games_use_this_engine():
@@ -104,6 +128,47 @@ def test_check_rom_rejects_garbage():
 
 
 # ---------------------------------------------------------------- real builds
+
+QA = 0x7F0  # lives, cam_lo, cam_hi, enemies alive, level, hx_lo, hx_hi, hy
+ENEMY_OAM = 28
+RUN_SPEED = 2  # pixels per frame (game.s)
+
+
+def _flat_level(objects, width=32, gaps=()):
+    tiles = [bytearray(width) for _ in range(lv.HEIGHT)]
+    for x in range(width):
+        if x not in gaps:
+            tiles[10][x], tiles[11][x] = lv.GROUND, lv.FILL
+    objs = [lv.Obj(kind, x, y) for kind, x, y in objects]
+    return lv.Level(0, width, tiles, objs, (2, 9), (width - 2, 9), "hills")
+
+
+def _bake_level(monkeypatch, level, stomp=True):
+    data = plat.level_data(lv.LevelPack("nes", 1, [level]), stomp=stomp)
+    monkeypatch.setattr(plat, "_levels_for", lambda spec: data)
+    return plat.bake(_spec()).rom
+
+
+def _playing(rom):
+    m = Nes(rom)
+    m.run(30)
+    m.run(3, START)
+    m.run(40, 0)
+    return m
+
+
+def _qa(m):
+    lives, cam_lo, cam_hi, alive, level, hx_lo, hx_hi, hy = m.ram[QA : QA + 8]
+    return {"lives": lives, "cam": cam_lo | cam_hi << 8, "alive": alive, "hx": hx_lo | hx_hi << 8}
+
+
+def _jump_when_close(m, distance):
+    for _ in range(400):
+        m.run(1, 0)
+        if m.oam[ENEMY_OAM + 3] - m.oam[3] <= distance:
+            break
+    m.run(3, A)
+    m.run(80, 0)
 
 
 @needs_cc65
@@ -158,3 +223,71 @@ def test_rom_boots_to_title_then_plays(baked):
     m.run(60, 0)
     assert _hero_y(m) == ground  # lands again
     assert bytes(m.ram[0x7FC:0x800]) == b"RB\x01\x02"
+
+
+@needs_cc65
+def test_walker_touch_costs_a_life_and_respawns(monkeypatch):
+    m = _playing(_bake_level(monkeypatch, _flat_level([(lv.WALKER, 8, 9)])))
+    assert _qa(m) == {"lives": 3, "cam": 0, "alive": 1, "hx": 32}
+    assert sum(1 for i in range(160, 172, 4) if m.oam[i] < 0xEF) == 3  # three hearts
+    for _ in range(300):
+        m.run(1, 0)
+        if _qa(m)["lives"] < 3:
+            break
+    assert _qa(m) == {"lives": 2, "cam": 0, "alive": 1, "hx": 32}  # back at the start
+
+
+@needs_cc65
+@pytest.mark.parametrize("stomp", [True, False])
+def test_jumping_on_a_walker(monkeypatch, stomp):
+    m = _playing(_bake_level(monkeypatch, _flat_level([(lv.WALKER, 8, 9)]), stomp=stomp))
+    _jump_when_close(m, 24)
+    if stomp:
+        assert _qa(m)["lives"] == 3 and _qa(m)["alive"] == 0
+    else:  # avoid-only games: landing on it hurts too
+        assert _qa(m)["lives"] == 2 and _qa(m)["alive"] == 1
+
+
+@needs_cc65
+def test_walker_turns_at_ledges_and_patroller_keeps_its_range(monkeypatch):
+    level = _flat_level([(lv.WALKER, 9, 9), (lv.FLYER, 11, 7)], gaps=(7, 8, 12))
+    m = _playing(_bake_level(monkeypatch, level))
+    walker, patroller = set(), set()
+    for _ in range(240):
+        m.run(1, 0)
+        walker.add(m.oam[ENEMY_OAM + 3])
+        patroller.add(m.oam[ENEMY_OAM + 16 + 3])
+    assert min(walker) == 9 * 16 and max(walker) == 11 * 16  # island is columns 9-11
+    assert min(patroller) == 8 * 16 and max(patroller) == 14 * 16  # 11 +/- 3, over the gaps
+    assert _qa(m)["lives"] == 3
+
+
+@needs_cc65
+def test_losing_every_life_goes_back_to_the_title(monkeypatch):
+    m = _playing(_bake_level(monkeypatch, _flat_level([(lv.WALKER, 5, 9)])))
+    for _ in range(600):
+        m.run(1, 0)
+        if m.ram[0x7FF] == 1:
+            break
+    assert bytes(m.ram[0x7FC:0x800]) == b"RB\x01\x01"
+
+
+@needs_cc65
+def test_camera_scrolls_smoothly_and_streams_columns(baked):
+    m = _playing(baked.rom)
+    level = plat.decode_level_data(plat.level_data(generate_levels(_spec())))[0]
+    cams = []
+    for i in range(150):  # this level's first hazard is further on
+        m.run(1, RIGHT | (A if i % 40 == 0 else 0))
+        cams.append(_qa(m)["cam"])
+    assert _qa(m)["lives"] == 3
+    steps = [b - a for a, b in zip(cams, cams[1:], strict=False)]
+    assert cams[-1] > 64 and all(0 <= s <= RUN_SPEED for s in steps)  # pixel by pixel
+    cam = cams[-1]
+    for c in range(cam // 16 + 1, cam // 16 + 16):  # every column in view is in the nametables
+        base = (0x2000 if c & 16 == 0 else 0x2400) + 4 * 32 + (c & 15) * 2
+        for row in range(lv.HEIGHT):
+            tile = level["tiles"][row][c]
+            if tile == lv.DOOR:
+                continue
+            assert m.vram[base + row * 64] == art.META_BASE + tile * 4, (c, row)

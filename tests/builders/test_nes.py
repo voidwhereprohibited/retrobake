@@ -74,6 +74,20 @@ def test_rejects_snes_and_broken_specs():
         nes.bake(broken)
 
 
+def test_side_jump_games_get_the_platformer_engine(monkeypatch):
+    from retrobake.builders import nes_platformer
+
+    seen = []
+    monkeypatch.setattr(nes_platformer, "bake", lambda spec, **kw: seen.append(spec) or "rom")
+    spec = _spec()
+    assert spec["modules"]["movement"] == "side_jump"
+    assert nes.bake(spec) == "rom" and seen == [spec]
+    spec["modules"]["movement"] = "topdown_walk"
+    with pytest.raises(nes.NesBuildError):
+        nes.bake(spec, cc65_dir="/nonexistent")  # hello engine: no toolchain there
+    assert len(seen) == 1
+
+
 def test_missing_toolchain_is_plain_english(tmp_path, monkeypatch):
     monkeypatch.delenv("RETROBAKE_CC65_DIR", raising=False)
     monkeypatch.setattr(nes, "_app_root", lambda: tmp_path)
@@ -91,7 +105,7 @@ def test_check_rom_rejects_garbage():
 
 @needs_cc65
 def test_bake_hello_world_rom_boots_and_shows_title():
-    result = nes.bake(_spec("Fox & Hills: 2!"))
+    result = nes.bake_hello(_spec("Fox & Hills: 2!"))
     rom = result.rom
     assert len(rom) == nes.ROM_BYTES and rom[:4] == b"NES\x1a"
     assert rom[-8192:] == font.chr_bank()
@@ -123,8 +137,8 @@ def test_bake_hello_world_rom_boots_and_shows_title():
 
 @needs_cc65
 def test_bake_is_deterministic_and_works_for_templates():
-    a = nes.bake(_spec("Same Game")).rom
-    b = nes.bake(_spec("Same Game")).rom
+    a = nes.bake_hello(_spec("Same Game")).rom
+    b = nes.bake_hello(_spec("Same Game")).rom
     assert a == b
-    tmpl = nes.bake(_spec("Quest", "platformer", "action-adventure"))
+    tmpl = nes.bake_hello(_spec("Quest", "platformer", "action-adventure"))
     assert tmpl.mapper == "NROM-128"

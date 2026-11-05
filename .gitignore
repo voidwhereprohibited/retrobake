@@ -32,3 +32,10 @@ themes/_work/
 
 # theme art lives outside the repo
 /themes/
+build/
+dist/
+
+# AI agent working files (kept outside the repo)
+CLAUDE.md
+.claude/
+coordination/

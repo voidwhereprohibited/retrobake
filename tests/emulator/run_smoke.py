@@ -8,16 +8,19 @@ for its system, boot it headless in a child process and check that it:
   4. reaches gameplay (state 2) after Start is pressed, and never reports error (0xEE).
 
 Cores are the libretro builds players use in RetroArch: NES = Mesen + FCEUmm,
-SNES = Snes9x. CI downloads them with --fetch-cores. Never run this on Roger's PC.
+SNES = Snes9x. CI downloads them with --fetch-cores from the RetroArch stable core pack
+pinned in cores.lock.json: the archive's sha256 is checked before anything is extracted,
+and every core's sha256 is checked before it is loaded. Any mismatch stops the run.
+Never run this on Roger's PC.
 """
 
 from __future__ import annotations
 
 import argparse
 import hashlib
-import io
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -32,7 +35,7 @@ from selftest_roms import write_selftest_roms  # noqa: E402
 
 CORES = {"nes": ["mesen", "fceumm"], "snes": ["snes9x"]}
 EXT_SYSTEM = {".nes": "nes", ".sfc": "snes", ".smc": "snes"}
-BUILDBOT = "https://buildbot.libretro.com/nightly/{plat}/x86_64/latest/{core}_libretro.{ext}.zip"
+LOCK = HERE / "cores.lock.json"
 STATE_ERROR = 0xEE
 TIMEOUT_S = 120
 
@@ -45,18 +48,102 @@ def core_file(cores_dir: Path, core: str) -> Path:
     return cores_dir / f"{core}_libretro.{core_ext()[1]}"
 
 
+class CoreVerifyError(RuntimeError):
+    """A downloaded archive or a core does not match the sha256 pinned in cores.lock.json."""
+
+
+def load_lock() -> dict:
+    return json.loads(LOCK.read_text(encoding="utf-8"))
+
+
+def sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def verify_core(path: Path, core: str, lock: dict | None = None) -> None:
+    """Refuse to go on unless `path` is the pinned build of `core` for this platform."""
+    want = (lock or load_lock())["cores"][core_ext()[0]][core]["sha256"]
+    got = sha256_file(path)
+    if got != want:
+        raise CoreVerifyError(f"{path.name}: sha256 {got} != pinned {want}; refusing to load")
+
+
+def download(url: str, dest: Path) -> None:
+    with urllib.request.urlopen(url, timeout=300) as resp, dest.open("wb") as out:  # noqa: S310 - pinned https URL
+        shutil.copyfileobj(resp, out, 1 << 20)
+
+
+def extract_member(archive: Path, member: str) -> bytes:
+    seven = shutil.which("7z") or shutil.which("7za")
+    if not seven:
+        raise RuntimeError("7z is needed to unpack the RetroArch core pack")
+    proc = subprocess.run(  # noqa: S603 - fixed argv, no shell; member names come from the lock
+        [seven, "e", "-so", str(archive), member], capture_output=True, check=True
+    )
+    return proc.stdout
+
+
+def fetch_zip_core(cores_dir: Path, core: str, pin: dict) -> None:
+    """Fetch a core pinned to its own buildbot zip; both zip and core are sha256-checked."""
+    with tempfile.TemporaryDirectory(prefix="rb-core-") as tmp:
+        archive = Path(tmp) / "core.zip"
+        download(pin["url"], archive)
+        got = sha256_file(archive)
+        if got != pin["zip_sha256"]:
+            raise CoreVerifyError(
+                f"{pin['url']}: sha256 {got} != pinned {pin['zip_sha256']}; refusing to extract"
+            )
+        with zipfile.ZipFile(archive) as zf:
+            data = zf.read(pin["member"])
+    if hashlib.sha256(data).hexdigest() != pin["sha256"]:
+        raise CoreVerifyError(f"{pin['member']} in {pin['url']} is not the pinned build")
+    core_file(cores_dir, core).write_bytes(data)
+    print(f"fetched {pin['member']} sha256={pin['sha256']} ({pin['version']}, {pin['built']})")
+
+
 def fetch_cores(cores_dir: Path) -> None:
     plat, ext = core_ext()
+    lock = load_lock()
+    wanted = sorted({c for cs in CORES.values() for c in cs})
     cores_dir.mkdir(parents=True, exist_ok=True)
-    for core in sorted({c for cs in CORES.values() for c in cs}):
-        url = BUILDBOT.format(plat=plat, core=core, ext=ext)
-        with urllib.request.urlopen(url, timeout=120) as resp:  # noqa: S310 - fixed https URL
-            blob = resp.read()
-        name = f"{core}_libretro.{ext}"
-        with zipfile.ZipFile(io.BytesIO(blob)) as zf:
-            data = zf.read(name)  # read the one expected member only (no zip-slip)
-        core_file(cores_dir, core).write_bytes(data)
-        print(f"fetched {name} sha256={hashlib.sha256(data).hexdigest()} from {url}")
+    missing = []
+    for core in wanted:
+        path = core_file(cores_dir, core)
+        try:
+            if path.is_file():
+                verify_core(path, core, lock)
+                continue
+        except CoreVerifyError:
+            path.unlink()
+        missing.append(core)
+    if not missing:
+        print(f"pinned cores already present in {cores_dir}")
+        return
+    for core in [c for c in missing if "zip_sha256" in lock["cores"][plat][c]]:
+        fetch_zip_core(cores_dir, core, lock["cores"][plat][core])
+        missing.remove(core)
+    if not missing:
+        return
+    pack = lock["archives"][plat]
+    with tempfile.TemporaryDirectory(prefix="rb-cores-") as tmp:
+        archive = Path(tmp) / "cores.7z"
+        download(pack["url"], archive)
+        got = sha256_file(archive)
+        if got != pack["sha256"]:
+            raise CoreVerifyError(
+                f"{pack['url']}: sha256 {got} != pinned {pack['sha256']}; refusing to extract"
+            )
+        for core in missing:
+            data = extract_member(archive, lock["cores"][plat][core]["member"])
+            want = lock["cores"][plat][core]["sha256"]
+            if hashlib.sha256(data).hexdigest() != want:
+                raise CoreVerifyError(f"{core}_libretro.{ext} in the pack is not the pinned build")
+            core_file(cores_dir, core).write_bytes(data)
+            print(f"fetched {core}_libretro.{ext} sha256={want} (RetroArch {lock['release']})")
 
 
 def boot(core: Path, rom: Path, system: str) -> dict:
@@ -107,11 +194,28 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--cores", type=Path, default=default_cores)
     ap.add_argument("--roms", type=Path, default=os.environ.get("RETROBAKE_SMOKE_ROMS"))
     ap.add_argument("--fetch-cores", action="store_true")
+    ap.add_argument(
+        "--verify-cores", action="store_true", help="only check the pinned cores, then exit"
+    )
+    ap.add_argument(
+        "--allow-unpinned",
+        action="store_true",
+        help="local use only: boot cores that do not match cores.lock.json",
+    )
     ap.add_argument("--report", type=Path, default=HERE / "out" / "smoke-report.json")
     args = ap.parse_args(argv)
 
-    if args.fetch_cores:
-        fetch_cores(args.cores)
+    try:
+        if args.fetch_cores:
+            fetch_cores(args.cores)
+        if args.verify_cores:
+            for core in sorted({c for cs in CORES.values() for c in cs}):
+                verify_core(core_file(args.cores, core), core)
+            print("pinned cores verified")
+            return 0
+    except (CoreVerifyError, FileNotFoundError) as exc:
+        print(f"REFUSED: {exc}", file=sys.stderr)
+        return 2
     with tempfile.TemporaryDirectory(prefix="rb-smoke-") as tmp:
         roms = write_selftest_roms(Path(tmp))
         if args.roms and Path(args.roms).is_dir():
@@ -124,8 +228,13 @@ def main(argv: list[str] | None = None) -> int:
                 if not path.is_file():
                     res, problems = {}, [f"core missing: {path} (run with --fetch-cores)"]
                 else:
-                    res = boot(path, rom, system)
-                    problems = check(res)
+                    try:
+                        if not args.allow_unpinned:
+                            verify_core(path, core)
+                        res = boot(path, rom, system)
+                        problems = check(res)
+                    except CoreVerifyError as exc:
+                        res, problems = {}, [str(exc)]
                 failed += bool(problems)
                 verdict = "PASS" if not problems else "FAIL"
                 print(f"{verdict}  {rom.name:<32} {core:<8} " + ("; ".join(problems) or "ok"))

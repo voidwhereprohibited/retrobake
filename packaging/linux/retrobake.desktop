@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=RetroBake
+Comment=Make your own original NES and SNES games
+Exec=RetroBake
+Icon=retrobake
+Categories=Game;Development;
+Terminal=false

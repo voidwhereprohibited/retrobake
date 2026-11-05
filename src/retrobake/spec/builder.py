@@ -14,6 +14,7 @@ from typing import Any
 
 from retrobake.security import scrub_ip
 
+from . import helper
 from .catalog import SPEC_VERSION, catalog
 from .rules import Fix, resolve
 from .style_refs import style_from_text
@@ -33,7 +34,7 @@ def new_spec(
     system: str,
     genre: str,
     description: str = "",
-    title: str = "My Game",
+    title: str = "",
     seed: int | None = None,
     *,
     inspirations: list[str] | tuple[str, ...] = (),
@@ -42,7 +43,8 @@ def new_spec(
     """Starting spec with sensible defaults for every field, ready for the guided questions.
 
     Franchise references in ``description`` steer modules and style; the stored description has
-    them replaced with neutral wording.
+    them replaced with neutral wording. The offline prompt helper reads the description and
+    pre-fills the hero, setting, colors, music and (when ``title`` is empty) the title.
     """
     if not isinstance(genre, str):
         raise TypeError("a game has exactly one genre; pass it as a string")
@@ -74,6 +76,13 @@ def new_spec(
         },
         "seed": secrets.randbelow(2**32) if seed is None else seed,
     }
+    clean = spec["description"]
+    if clean.strip():
+        plan = helper.analyze(clean, genre)
+        for section, values in helper.spec_defaults(plan).items():
+            spec[section].update(values)
+        spec["title"] = title or plan.title
+    spec["title"] = spec["title"] or "My Game"
     extra = [g for g in dict.fromkeys(inspirations) if g != genre]
     if extra:
         spec["inspirations"] = extra

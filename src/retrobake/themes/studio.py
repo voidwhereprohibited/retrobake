@@ -25,6 +25,9 @@ sys.path.insert(0, str(ROOT / "tools/theme_art"))
 import build_themes as BT  # noqa: E402
 import lettering as LT  # noqa: E402
 
+# Modern sans for lettering where a pixel font used to be.
+CLEAN_FONT = "NotoSans-Bold.ttf"
+
 TABS = [
     "Main Menu",
     "Settings",
@@ -52,7 +55,7 @@ class Analysis:
 
 
 def _hex(c):
-    return "#{:02x}{:02x}{:02x}".format(*tuple(int(v) for v in c[:3]))
+    return "#{:02x}{:02x}{:02x}".format(*(int(v) for v in c[:3]))
 
 
 def _axis_aligned(im) -> float:
@@ -109,15 +112,11 @@ def choose(a: Analysis) -> dict:
     dark = a.brightness < 0.42
     vivid = a.saturation > 0.45
     if a.pixel_art:
+        # Clean modern lettering even on pixel-art photos: the photo carries the retro look.
         letter = (
-            {
-                "kind": "mcblock",
-                "font": "Silkscreen-Regular.ttf",
-                "color": "#8f8f8f",
-                "extrude": "#4a4a4a",
-            }
+            {"kind": "stencil", "font": CLEAN_FONT, "color": "#1b1b1b", "color2": "#3a3a3a"}
             if not dark
-            else {"kind": "neon", "font": "PressStart2P-Regular.ttf", "color": a.accent}
+            else {"kind": "neon", "font": CLEAN_FONT, "color": a.accent}
         )
         icons = {
             "pack": "16X-Theme-4-XMB/main icons/png",
@@ -125,7 +124,7 @@ def choose(a: Analysis) -> dict:
             "fx": {"outline": "#0d0d0d", "outline_px": 4, "shadow": True},
             "systems": "yoshi-xmb",
         }
-        why = "pixel-art photo -> blocky lettering and pixel icons"
+        why = "pixel-art photo -> clean lettering and pixel icons"
     elif dark and vivid:
         letter = {"kind": "neon", "font": "TiltNeon.ttf", "color": a.accent}
         icons = {

@@ -1,4 +1,4 @@
-"""Plain, high-contrast theme for the RetroBake wizard.
+"""Clean, modern theme for the RetroBake wizard (tokens live in ``retrobake.themes.tokens``).
 
 Fonts are always set in points (never pixels) so the whole app scales with
 the user's system setting and with RetroBake's own Ctrl+/Ctrl- zoom.
@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QFont, QGuiApplication, QPalette
 from PySide6.QtWidgets import QApplication
+
+from ..themes import tokens
 
 BASE_POINT_SIZE = 11
 MIN_SCALE = 0.8
@@ -30,27 +32,8 @@ class Colors:
     focus: str
 
 
-LIGHT = Colors(
-    window="#F4F1EA",
-    surface="#FFFFFF",
-    text="#1B1B1F",
-    muted="#4A4A55",
-    accent="#B3261E",
-    accent_text="#FFFFFF",
-    border="#8A8A95",
-    focus="#1A56DB",
-)
-
-DARK = Colors(
-    window="#17171C",
-    surface="#24242B",
-    text="#F2F2F5",
-    muted="#C4C4CF",
-    accent="#FF8A7A",
-    accent_text="#1B1B1F",
-    border="#6E6E7A",
-    focus="#8AB4FF",
-)
+LIGHT = Colors(**tokens.LIGHT)
+DARK = Colors(**tokens.DARK)
 
 
 def _luminance(hex_color: str) -> float:
@@ -98,18 +81,19 @@ def palette_for(colors: Colors) -> QPalette:
 
 def stylesheet(colors: Colors) -> str:
     # No font sizes here on purpose: sizes come from QFont so zoom works.
+    r_s, r_m, r_l = tokens.RADIUS_S, tokens.RADIUS_M, tokens.RADIUS_L
     return f"""
     QWidget#WizardRoot {{ background: {colors.window}; }}
     QLabel[role="title"] {{ color: {colors.text}; font-weight: 700; }}
     QLabel[role="subtitle"], QLabel[role="hint"] {{ color: {colors.muted}; }}
     QProgressBar {{ background: {colors.surface}; border: 1px solid {colors.border};
-        border-radius: 4px; }}
+        border-radius: 3px; }}
     QProgressBar::chunk {{ background: {colors.accent}; border-radius: 3px; }}
     QFrame#Card {{
-        background: {colors.surface}; border: 1px solid {colors.border}; border-radius: 12px;
+        background: {colors.surface}; border: 1px solid {colors.border}; border-radius: {r_l}px;
     }}
     QPushButton {{
-        min-height: 2.4em; padding: 6px 22px; border-radius: 10px;
+        min-height: 2.4em; padding: 6px 22px; border-radius: {r_m}px;
         border: 1px solid {colors.border}; background: {colors.surface}; color: {colors.text};
     }}
     QPushButton:default, QPushButton[primary="true"] {{
@@ -122,9 +106,14 @@ def stylesheet(colors: Colors) -> str:
         outline: none; border: 3px solid {colors.focus};
     }}
     QComboBox, QLineEdit, QPlainTextEdit {{
-        min-height: 2.2em; padding: 4px 8px; border-radius: 8px;
+        min-height: 2.2em; padding: 4px 10px; border-radius: {r_s}px;
         border: 1px solid {colors.border}; background: {colors.surface}; color: {colors.text};
     }}
+    QPushButton:hover {{ border-color: {colors.accent}; }}
+    QFrame#Choice {{ background: {colors.surface}; border: 1px solid {colors.border};
+        border-radius: {r_m}px; }}
+    QFrame#Choice[selected="true"] {{ border: 2px solid {colors.accent}; }}
+    QLabel[role="cover"] {{ border: 1px solid {colors.border}; border-radius: {r_s}px; }}
     QScrollArea {{ border: none; background: transparent; }}
     """
 
@@ -148,6 +137,7 @@ def clamp_scale(scale: float) -> float:
 def set_font_scale(app: QApplication, scale: float) -> float:
     scale = clamp_scale(scale)
     font = QFont(app.font())
+    font.setFamilies(list(tokens.FONT_FAMILIES))
     font.setPointSizeF(BASE_POINT_SIZE * scale)
     app.setFont(font)
     return scale

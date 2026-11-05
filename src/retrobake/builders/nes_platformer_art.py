@@ -130,10 +130,40 @@ def _flag(x: int, y: int) -> int:
     return 1 if 2 <= x <= 7 and 1 <= y <= 6 else 0
 
 
+def _heart(x: int, y: int) -> int:
+    if y in (1, 2) and x in (1, 2, 4, 5):
+        return 1
+    return 1 if 3 <= y <= 5 and y - 2 <= x <= 8 - y else 0
+
+
+# Enemy colours: 1 body, 2 white, 3 dark.
+def _walker(x: int, y: int) -> int:
+    if y >= 13:
+        return 3 if x in (2, 3, 4, 11, 12, 13) else 0
+    if (x - 7.5) ** 2 + (y - 8) ** 2 > 42:
+        return 0
+    if y in (5, 6) and x in (4, 5, 10, 11):
+        return 2 if x in (4, 10) else 3
+    return 1
+
+
+def _patroller(x: int, y: int) -> int:
+    if y <= 3:
+        return 2 if (x < 7 and y >= x // 2) or (x > 8 and y >= (15 - x) // 2) else 0
+    if not (2 <= x <= 13 and y <= 12):
+        return 0
+    if y in (6, 7) and x in (5, 10):
+        return 3
+    return 1
+
+
+# Sprite tiles: 0-3 hero, 4 key, 5-6 flag, 7 heart, 8-11 walker, 12-15 patroller.
 def sprite_table() -> bytes:
     hero = _grid(16, 16, _hero)
     flag = _grid(8, 16, _flag)
     out = _quad(hero) + _tile(_grid(8, 8, _key), 0, 0) + _tile(flag, 0, 0) + _tile(flag, 0, 8)
+    out += _tile(_grid(8, 8, _heart), 0, 0)
+    out += _quad(_grid(16, 16, _walker)) + _quad(_grid(16, 16, _patroller))
     return out + bytes(TABLE_BYTES - len(out))
 
 
