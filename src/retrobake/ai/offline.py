@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Offline, deterministic, original-only cover art and name ideas (no network, stdlib only).
 
 Same spec + seed + variant always gives the same picture and names, on Windows and Linux.
@@ -372,64 +373,178 @@ def offline_art(spec: dict[str, Any], *, variant: int = 0) -> Canvas:
 
 
 # ---------------------------------------------------------------- names
-_S_WORDS = {
-    "grassland": ["Meadow", "Clover", "Hilltop", "Sunny", "Green"],
-    "forest": ["Wild", "Mossy", "Timber", "Thorn", "Hollow"],
-    "castle": ["Royal", "Stone", "Crown", "Iron", "Banner"],
-    "cave": ["Deep", "Crystal", "Echo", "Ember", "Gloom"],
-    "desert": ["Sand", "Dune", "Mirage", "Sunbaked", "Dust"],
-    "ocean": ["Tide", "Coral", "Wave", "Pearl", "Reef"],
-    "ice": ["Frost", "Glacier", "Snow", "Polar", "Icicle"],
-    "volcano": ["Magma", "Ember", "Ash", "Inferno", "Blaze"],
-    "city": ["Neon", "Metro", "Rooftop", "Street", "Turbo"],
-    "space": ["Cosmic", "Nova", "Orbit", "Comet", "Nebula"],
-    "haunted": ["Phantom", "Grim", "Shadow", "Moonlit", "Spooky"],
-    "sky": ["Cloud", "Aero", "Thunder", "Wind", "Skyhigh"],
+# Hand-written title ideas, one list per setting. Each title sticks to its one setting's theme:
+# no word templates, no genre or hero words glued together. Every list has at least 12 titles.
+_NAMES: dict[str, tuple[str, ...]] = {
+    "grassland": (
+        "Meadow Run",
+        "Clover Hills",
+        "Green Valley",
+        "Sunny Fields",
+        "Hilltop Dash",
+        "The Long Meadow",
+        "Rolling Hills",
+        "Daisy Path",
+        "Windmill Way",
+        "Hayfield Hop",
+        "Brook and Burrow",
+        "Over the Hill",
+    ),
+    "forest": (
+        "Mossy Hollow",
+        "Timberwood",
+        "Thorn Thicket",
+        "The Deep Woods",
+        "Fernlight",
+        "Old Oak Trail",
+        "Acorn Quest",
+        "Pinecone Path",
+        "Twig and Bramble",
+        "Wildwood",
+        "Canopy Climb",
+        "Leafshade",
+    ),
+    "castle": (
+        "Stonekeep",
+        "Crown and Tower",
+        "The Iron Gate",
+        "Banner Hall",
+        "Royal Ramparts",
+        "Keep of Kings",
+        "Drawbridge",
+        "The High Turret",
+        "Throne Room",
+        "Castle Siege",
+        "The Old Fortress",
+        "Moat Jump",
+    ),
+    "cave": (
+        "Crystal Caverns",
+        "Echo Deep",
+        "Glowstone",
+        "The Hollow Earth",
+        "Stalactite",
+        "Gloom Tunnels",
+        "Under Rock",
+        "Gem Mine",
+        "Deepdark",
+        "Lantern Cave",
+        "The Sunken Grotto",
+        "Bedrock",
+    ),
+    "desert": (
+        "Dune Runner",
+        "Mirage",
+        "Sunbaked Sands",
+        "The Dry Wells",
+        "Oasis",
+        "Sandstorm",
+        "Cactus Canyon",
+        "Desert Star",
+        "The Buried Temple",
+        "Dust Devil",
+        "Scorpion Ridge",
+        "Red Mesa",
+    ),
+    "ocean": (
+        "Tidepool",
+        "Coral Reef",
+        "Pearl Diver",
+        "The Deep Blue",
+        "Wave Rider",
+        "Shipwreck Cove",
+        "Sea Glass",
+        "Lighthouse",
+        "Salt and Spray",
+        "Sandbar",
+        "Kelp Forest",
+        "High Tide",
+    ),
+    "ice": (
+        "Frostpeak",
+        "Glacier",
+        "Snowdrift",
+        "Polar Night",
+        "Icicle Cave",
+        "The Frozen North",
+        "Blizzard",
+        "Snowcap",
+        "Cold Snap",
+        "Ice Palace",
+        "Winter Pass",
+        "Permafrost",
+    ),
+    "volcano": (
+        "Mount Ember",
+        "Magma Run",
+        "Ash Valley",
+        "Lava Flow",
+        "Fire Peak",
+        "The Burning Crater",
+        "Cinder Path",
+        "Obsidian",
+        "Hot Springs",
+        "Molten Core",
+        "Eruption",
+        "Smoke Ridge",
+    ),
+    "city": (
+        "Rooftop Run",
+        "Metro Line",
+        "Neon Nights",
+        "Downtown",
+        "Night Shift",
+        "Back Alley",
+        "Skyline",
+        "Rush Hour",
+        "The Big City",
+        "Streetlights",
+        "Subway",
+        "Uptown",
+    ),
+    "space": (
+        "Starfall",
+        "Orbit",
+        "Nebula",
+        "Comet Trail",
+        "Moonbase",
+        "The Far Stars",
+        "Deep Space",
+        "Asteroid Belt",
+        "Nova",
+        "Galaxy Edge",
+        "Lunar Dawn",
+        "Cosmic Drift",
+    ),
+    "haunted": (
+        "Gloom Manor",
+        "Moonlit Halls",
+        "The Creaky House",
+        "Phantom Hall",
+        "Midnight",
+        "Cobweb Castle",
+        "Grave Hill",
+        "Candlelight",
+        "The Attic",
+        "Shadow House",
+        "Hollow Night",
+        "Boo Mansion",
+    ),
+    "sky": (
+        "Cloudreach",
+        "Sky Islands",
+        "Above the Clouds",
+        "Windward",
+        "Thunderhead",
+        "Floating Isles",
+        "Updraft",
+        "High Winds",
+        "Skyward",
+        "Rainbow Bridge",
+        "Cloud Nine",
+        "Sunbeam",
+    ),
 }
-_H_WORDS = {
-    "knight": ["Knight", "Squire", "Paladin", "Shieldbearer"],
-    "explorer": ["Explorer", "Ranger", "Trekker", "Scout"],
-    "robot": ["Robo", "Bolt", "Circuit", "Gizmo"],
-    "animal": ["Otter", "Badger", "Bunny", "Kitty"],
-    "wizard": ["Wizard", "Mage", "Rune", "Spellcaster"],
-    "kid": ["Kid", "Kiddo", "Rascal", "Buddy"],
-    "ninja": ["Ninja", "Shuriken", "Blade", "Stealth"],
-    "pilot": ["Pilot", "Ace", "Jet", "Wingman"],
-}
-_G_WORDS = {
-    "platformer": ["Jump", "Dash", "Leap", "Run"],
-    "topdown_adventure": ["Trail", "Journey", "Odyssey", "Expedition"],
-    "rpg": ["Saga", "Chronicle", "Tales", "Legacy"],
-    "shooter": ["Blaster", "Strike", "Assault", "Squadron"],
-    "puzzle": ["Blocks", "Puzzle", "Tiles", "Match"],
-    "sports": ["Cup", "League", "Slam", "Champions"],
-}
-_PLACES = {
-    "grassland": "the Meadows",
-    "forest": "the Wildwood",
-    "castle": "Stonekeep",
-    "cave": "the Deep",
-    "desert": "the Dunes",
-    "ocean": "the Tides",
-    "ice": "Frostpeak",
-    "volcano": "Mount Ember",
-    "city": "Neon City",
-    "space": "the Stars",
-    "haunted": "Gloom Manor",
-    "sky": "Cloudreach",
-}
-_PATTERNS = (
-    "{S} {G}",
-    "{H} {G}",
-    "{G} of {P}",
-    "{S} {H}",
-    "{H}'s {G}",
-    "Super {H} {G}",
-    "{S} {G} II",
-    "{S} {H} {G}",
-    "{H} of {P}",
-    "{G} {H}",
-)
 
 
 def _clean_name(name: str) -> str | None:
@@ -440,34 +555,14 @@ def _clean_name(name: str) -> str | None:
 
 
 def offline_names(spec: dict[str, Any], n: int = 6, *, variant: int = 0) -> list[str]:
-    """Original name ideas built from the spec; always returns ``n`` names (n <= 12)."""
+    """``n`` original name ideas (n <= 12) picked from the setting's hand-written list."""
     n = max(1, min(12, n))
-    rng = _rng(spec, variant, "names")
     setting = _pick(spec, "world", "setting", default="grassland")
-    archetype = _pick(spec, "hero", "archetype", default="explorer")
-    genres = [g for g in (spec.get("genres") or []) if isinstance(g, str)] or ["platformer"]
-    s_words = _S_WORDS.get(setting, _S_WORDS["grassland"])
-    h_words = _H_WORDS.get(archetype, _H_WORDS["explorer"])
-    g_words = [w for g in genres for w in _G_WORDS.get(g, _G_WORDS["platformer"])]
-    place = _PLACES.get(setting, "the Meadows")
-    seen: set[str] = set()
-    out: list[str] = []
-    patterns = list(_PATTERNS)
-    for attempt in range(400):
-        if attempt % len(patterns) == 0:
-            rng.shuffle(patterns)
-        pat = patterns[attempt % len(patterns)]
-        name = pat.format(
-            S=rng.choice(s_words), H=rng.choice(h_words), G=rng.choice(g_words), P=place
-        )
-        clean = _clean_name(name)
-        if clean and clean.casefold() not in seen:
-            seen.add(clean.casefold())
-            out.append(clean)
-            if len(out) == n:
-                break
+    names = list(_NAMES.get(setting, _NAMES["grassland"]))
+    _rng(spec, variant, "names").shuffle(names)
+    out = [clean for clean in map(_clean_name, names) if clean][:n]
     fallback = 1
-    while len(out) < n:  # tiny word lists can't run dry the user's choice
+    while len(out) < n:  # only if the IP guard ever rejects a curated title
         out.append(f"My Game {fallback}")
         fallback += 1
     return out

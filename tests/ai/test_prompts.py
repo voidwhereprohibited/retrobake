@@ -7,7 +7,7 @@ from retrobake.spec import new_spec
 
 
 def base(**kw):
-    s, _ = new_spec("nes", ["platformer"], "a frog who rescues the moon", title="Moon Frog")
+    s, _ = new_spec("nes", "platformer", "a frog who rescues the moon", title="Moon Frog")
     s.update(kw)
     return s
 
@@ -21,11 +21,20 @@ def test_cover_prompt_is_fixed_template_with_quoted_story():
     assert len(p.text) <= MAX_PROMPT_CHARS
 
 
-def test_snes_era_and_mashup_words():
-    s, _ = new_spec("snes", ["rpg", "shooter"], "")
+def test_snes_era_words():
+    s, _ = new_spec("snes", "rpg", "")
     p = prompts.cover_prompt(s)
-    assert "16-bit era" in p.text and "mixed with" in p.text
+    assert "16-bit era" in p.text and "fantasy role-playing adventure" in p.text
     assert '"an original adventure"' in p.text
+
+
+@pytest.mark.parametrize("build", [prompts.cover_prompt, prompts.names_prompt])
+def test_prompts_name_exactly_one_genre(build):
+    s = base(genres=["platformer", "rpg"], inspirations=["shooter"])
+    text = build(s).text
+    named = [g for g, words in prompts.GENRE_WORDS.items() if words in text]
+    assert named == ["platformer"]
+    assert "mixed with" not in text and " meets " not in text
 
 
 def test_franchise_names_never_reach_the_prompt():

@@ -8,8 +8,9 @@ from __future__ import annotations
 
 CHARSET = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,!?'&:-"
 
+# The one source of truth for the house font (ai/font.py draws cover titles from it too).
 # 7 rows of 5 pixels each ("#" = on). Drawn 1 pixel in from the left, top-aligned.
-_GLYPHS: dict[str, str] = {
+GLYPHS: dict[str, str] = {
     " ": "..... ..... ..... ..... ..... ..... .....",
     "A": ".###. #...# #...# ##### #...# #...# #...#",
     "B": "####. #...# #...# ####. #...# #...# ####.",
@@ -24,7 +25,7 @@ _GLYPHS: dict[str, str] = {
     "K": "#...# #..#. #.#.. ##... #.#.. #..#. #...#",
     "L": "#.... #.... #.... #.... #.... #.... #####",
     "M": "#...# ##.## #.#.# #.#.# #...# #...# #...#",
-    "N": "#...# ##..# #.#.# #..## #...# #...# #...#",
+    "N": "#...# #...# ##..# #.#.# #..## #...# #...#",
     "O": ".###. #...# #...# #...# #...# #...# .###.",
     "P": "####. #...# #...# ####. #.... #.... #....",
     "Q": ".###. #...# #...# #...# #.#.# #..#. .##.#",
@@ -33,7 +34,7 @@ _GLYPHS: dict[str, str] = {
     "T": "##### ..#.. ..#.. ..#.. ..#.. ..#.. ..#..",
     "U": "#...# #...# #...# #...# #...# #...# .###.",
     "V": "#...# #...# #...# #...# #...# .#.#. ..#..",
-    "W": "#...# #...# #...# #.#.# #.#.# ##.## #...#",
+    "W": "#...# #...# #...# #.#.# #.#.# #.#.# .#.#.",
     "X": "#...# #...# .#.#. ..#.. .#.#. #...# #...#",
     "Y": "#...# #...# .#.#. ..#.. ..#.. ..#.. ..#..",
     "Z": "##### ....# ...#. ..#.. .#... #.... #####",
@@ -71,7 +72,7 @@ def _tile(glyph: str) -> bytes:
 
 def chr_bank() -> bytes:
     """8 KB CHR-ROM: font in pattern table 0, the rest blank."""
-    tiles = b"".join(_tile(_GLYPHS[c]) for c in CHARSET)
+    tiles = b"".join(_tile(GLYPHS[c]) for c in CHARSET)
     return tiles + bytes(CHR_BANK_BYTES - len(tiles))
 
 

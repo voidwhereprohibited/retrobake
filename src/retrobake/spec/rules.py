@@ -173,6 +173,8 @@ def problems(spec: dict[str, Any]) -> list[str]:
     for g in spec["genres"]:
         if not catalog()["genres"][g]["available"]:
             out.append(f"genre '{g}' is not available yet")
+    if set(spec.get("inspirations", [])) & set(spec["genres"]):
+        out.append("an inspiration can't be the game's own genre")
     _, fixes = resolve(spec)
     out.extend(f"{f.rule}: {f.message}" for f in fixes)
     return out

@@ -11,8 +11,6 @@ from .errors import InputRejected, OutputRejected, SandboxError
 from .ipguard import check_title, find_ip, scrub_ip
 from .outputs import validate_image, validate_name
 from .promptguard import (
-    POLLINATIONS_GEN_SAFE,
-    POLLINATIONS_REQUIRED_PARAMS,
     check_prompt,
     quote_user_text,
 )
@@ -23,8 +21,6 @@ __all__ = [
     "DISCLAIMER",
     "DISCLAIMER_SHORT",
     "FIELDS",
-    "POLLINATIONS_GEN_SAFE",
-    "POLLINATIONS_REQUIRED_PARAMS",
     "BuildLimits",
     "BuildResult",
     "BuildWorkspace",

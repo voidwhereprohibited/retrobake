@@ -14,7 +14,7 @@ from retrobake.builders import snes
 
 def main(argv: list[str]) -> int:
     out = Path(argv[1] if len(argv) > 1 else "sample-hello.sfc")
-    spec, _ = gs.new_spec("snes", ["platformer"], "a sample game", "Hello RetroBake", seed=1)
+    spec, _ = gs.new_spec("snes", "platformer", "a sample game", "Hello RetroBake", seed=1)
     try:
         result = snes.bake(spec)
     except snes.SnesBuildError as exc:

@@ -4,9 +4,12 @@ import pytest
 
 from retrobake.ai import COVER_SIZE, offline_art, offline_names
 from retrobake.ai.font import CHARSET, add_title_banner
-from retrobake.ai.offline import _H_WORDS, _MOODS, _SETTINGS
+from retrobake.ai.offline import _MOODS, _NAMES, _SETTINGS
 from retrobake.ai.raster import Canvas, from_png
 from retrobake.security import check_title, find_ip
+from retrobake.spec import catalog
+
+ARCHETYPES = sorted(catalog()["hero_archetypes"])
 
 
 def spec(**kw):
@@ -47,7 +50,7 @@ def test_every_setting_and_mood_renders(setting, mood):
     assert len(set(bytes(img.data[i : i + 3]) for i in range(0, len(img.data), 3 * 97))) > 4
 
 
-@pytest.mark.parametrize("arch", sorted(_H_WORDS))
+@pytest.mark.parametrize("arch", ARCHETYPES)
 @pytest.mark.parametrize("genre", ["platformer", "shooter", "puzzle", "sports", "rpg"])
 def test_every_hero_and_genre_renders(arch, genre):
     offline_art(spec(hero={"archetype": arch}, genres=[genre]))
@@ -84,10 +87,10 @@ def test_font_covers_title_charset():
         assert ch in CHARSET
 
 
-@pytest.mark.parametrize("arch", sorted(_H_WORDS))
+@pytest.mark.parametrize("arch", ARCHETYPES)
 @pytest.mark.parametrize("setting", sorted(_SETTINGS))
 def test_names_valid_original_and_deterministic(arch, setting):
-    s = spec(hero={"archetype": arch}, world={"setting": setting}, genres=["rpg", "shooter"])
+    s = spec(hero={"archetype": arch}, world={"setting": setting}, genres=["rpg"])
     names = offline_names(s, 8)
     assert len(names) == 8 and len({n.casefold() for n in names}) == 8
     assert names == offline_names(s, 8)
@@ -98,3 +101,53 @@ def test_names_valid_original_and_deterministic(arch, setting):
 def test_names_count_bounds_and_garbage_spec():
     assert len(offline_names({}, 1)) == 1
     assert len(offline_names({"genres": [1, None]}, 50)) == 12
+
+
+# --- no mashed-up names -------------------------------------------------------------
+
+
+@pytest.mark.parametrize("setting", sorted(_SETTINGS))
+def test_names_come_only_from_the_settings_curated_list(setting):
+    assert len(_NAMES[setting]) >= 12
+    for variant in range(5):
+        for genre in ("platformer", "topdown_adventure", "rpg"):
+            s = spec(world={"setting": setting}, genres=[genre], seed=variant)
+            assert set(offline_names(s, 12, variant=variant)) <= set(_NAMES[setting])
+
+
+def test_names_ignore_genre_and_hero():
+    base = offline_names(spec(), 6)
+    assert offline_names(spec(genres=["rpg"], hero={"archetype": "robot"}), 6) == base
+
+
+def test_curated_lists_are_single_theme_and_not_templated():
+    every = [n for names in _NAMES.values() for n in names]
+    assert len(every) == len({n.casefold() for n in every})  # no title shared between settings
+    assert set(_NAMES) == set(_SETTINGS)
+    for name in every:
+        assert not name.startswith("Super ") and not name.endswith(" II")
+        assert check_title(name) == name and not find_ip(name)
+
+
+def test_cover_font_is_the_rom_font():
+    from retrobake.ai import font
+    from retrobake.builders import nes_font
+
+    assert font._ROWS == {ch: rows.split() for ch, rows in nes_font.GLYPHS.items()}
+    assert font._ROWS["N"] == ["#...#", "#...#", "##..#", "#.#.#", "#..##", "#...#", "#...#"]
+    assert font._ROWS["S"] == [".###.", "#...#", "#....", ".###.", "....#", "#...#", ".###."]
+    assert font._ROWS["W"] == ["#...#", "#...#", "#...#", "#.#.#", "#.#.#", "#.#.#", ".#.#."]
+
+
+def test_art_code_has_license_headers_and_credits():
+    from pathlib import Path
+
+    import retrobake.ai as ai
+
+    root = Path(ai.__file__).parent
+    for name in ("font.py", "offline.py"):
+        first = (root / name).read_text(encoding="utf-8").splitlines()[0]
+        assert first == "# SPDX-License-Identifier: GPL-3.0-or-later"
+    credits = (root.parents[2] / "CREDITS.md").read_text(encoding="utf-8")
+    for path in ("builders/nes_font.py", "ai/font.py", "ai/offline.py"):
+        assert f"src/retrobake/{path}" in credits

@@ -10,9 +10,16 @@
     "spec_version": {"const": "1.0"},
     "system": {"enum": ["nes", "snes"]},
     "genres": {
-      "description": "One genre, or two for a mashup. The first is the primary genre (sets how the game feels to move around in).",
+      "description": "Exactly one genre. Games are never mashups of two genres.",
       "type": "array",
       "minItems": 1,
+      "maxItems": 1,
+      "uniqueItems": true,
+      "items": {"enum": ["platformer", "topdown_adventure", "rpg", "shooter", "puzzle", "sports"]}
+    },
+    "inspirations": {
+      "description": "Optional other genres the user likes. Engines may use them to fine-tune feel (speed, jump height); they never change the genre, modules, world or names.",
+      "type": "array",
       "maxItems": 2,
       "uniqueItems": true,
       "items": {"enum": ["platformer", "topdown_adventure", "rpg", "shooter", "puzzle", "sports"]}

@@ -14,7 +14,7 @@ from retrobake.builders import nes
 
 def main(argv: list[str]) -> int:
     out = Path(argv[1] if len(argv) > 1 else "sample-hello.nes")
-    spec, _ = gs.new_spec("nes", ["platformer"], "a sample game", "Hello RetroBake", seed=1)
+    spec, _ = gs.new_spec("nes", "platformer", "a sample game", "Hello RetroBake", seed=1)
     try:
         result = nes.bake(spec)
     except nes.NesBuildError as exc:

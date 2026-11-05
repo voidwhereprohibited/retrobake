@@ -84,18 +84,16 @@
       "world": {"levels": 3, "difficulty": "normal", "setting": "city"}
     }
   },
-  "mashup_recipes": {
-    "platformer+topdown_adventure": {
-      "movement": "side_jump",
-      "combat": "melee",
-      "progression": "dungeons_items",
-      "extras": ["hearts", "keys_doors", "bosses", "collectibles"]
-    },
-    "topdown_adventure+platformer": {
-      "movement": "topdown_walk",
-      "combat": "melee",
-      "progression": "linear_levels",
-      "extras": ["lives", "collectibles", "bosses", "score"]
+  "templates": {
+    "action-adventure": {
+      "label": "Action-adventure (side-view dungeons with a sword)",
+      "genre": "platformer",
+      "modules": {
+        "movement": "side_jump",
+        "combat": "melee",
+        "progression": "dungeons_items",
+        "extras": ["hearts", "keys_doors", "bosses", "collectibles"]
+      }
     }
   },
   "modules": {

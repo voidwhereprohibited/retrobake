@@ -10,7 +10,7 @@ Owner: **game-design**. Every other agent builds on this. Don't change it withou
 
 | Call | Returns | Used by |
 |---|---|---|
-| `new_spec(system, genres, description="", title="My Game", seed=None)` | `(spec, fixes)` with every field filled | wizard-ui |
+| `new_spec(system, genre, description="", title="My Game", seed=None, *, inspirations=(), template=None)` | `(spec, fixes)` with every field filled | wizard-ui |
 | `questions_for(spec)` | list of question dicts, in order | wizard-ui |
 | `apply_answers(spec, {question_id: value})` | `(spec, fixes)` | wizard-ui |
 | `resolve(spec)` | `(spec, fixes)` — conflict-free copy, input untouched | anyone |
@@ -27,7 +27,8 @@ Owner: **game-design**. Every other agent builds on this. Don't change it withou
 |---|---|
 | `spec_version` | `"1.0"` |
 | `system` | `nes`, `snes` |
-| `genres` | 1 or 2 of `platformer`, `topdown_adventure` (available now), `rpg`, `shooter`, `puzzle`, `sports` (planned). First = primary feel. |
+| `genres` | exactly 1 of `platformer`, `topdown_adventure` (available now), `rpg`, `shooter`, `puzzle`, `sports` (planned). |
+| `inspirations` | optional, up to 2 other genres. Engines may use them to fine-tune feel (speed, jump height). They never change the genre, modules, world or names. |
 | `title` | 1–24 chars, `A-Z a-z 0-9 space . , ! ? ' & : -`, starts with letter/digit |
 | `description` | ≤ 500 chars, no control chars except tab/newline. Franchise names already replaced. |
 | `hero.archetype` | `knight explorer robot animal wizard kid ninja pilot` |
@@ -59,16 +60,15 @@ System limits: NES max 5 extras, 8 levels, 4 dungeons, medium map. SNES max 8 ex
 | puzzle (planned) | topdown_walk | none | linear_levels | keys_doors, timer, score |
 | sports (planned) | topdown_walk | none | linear_levels | score, timer |
 
-## Mashups
+## One genre, no mashups
 
-The **primary** genre (first) decides how you move and fight; the **secondary** brings its world layout and extras. Hand-tuned recipes:
+Every game has exactly one genre. Its modules and world (including the setting) come from that genre alone; nothing is blended in from another genre. A description that names two games ("like X meets Y") only adds style tags and a palette, never mixed modules.
 
-- `platformer + topdown_adventure` → side_jump, melee, dungeons_items, hearts/keys_doors/bosses/collectibles (side-scrolling dungeon adventure)
-- `topdown_adventure + platformer` → topdown_walk, melee, linear_levels, lives/collectibles/bosses/score (top-down action stages)
+### Templates
 
-Any other pair: primary movement + combat, secondary progression, extras from both; then `resolve()`.
+A template is a named, hand-tuned module set for one genre. Pass `template=` to `new_spec`:
 
-The wizard asks "Which should it feel most like?" (`feel`) and "How should the world be laid out?" (`world_shape`) first for mashups.
+- `action-adventure` (genre `platformer`) → side_jump, melee, dungeons_items, hearts/keys_doors/bosses/collectibles (side-scrolling dungeon adventure)
 
 ## Incompatible combinations and how they're resolved
 
@@ -91,13 +91,13 @@ Every combination of modules goes through `resolve()`, so engines always receive
 
 Question dict: `id, prompt, help, kind (choice|multi|number|text), target, default, options[{value,label}], min, max, max_length, max_choices`.
 
-Order: (mashup only) `feel`, `world_shape` → `hero_archetype`, `hero_description`, `setting`, `combat`, one of `levels` / `dungeons` / `map_size`, `extras`, `difficulty`, `palette_mood`, `music_mood`.
+Order: `hero_archetype`, `hero_description`, `setting`, `combat`, one of `levels` / `dungeons` / `map_size`, `extras`, `difficulty`, `palette_mood`, `music_mood`.
 
 Options already exclude things that don't fit (no "Jump on enemies" in top-down, no timer outside stages, map sizes per system). Re-call `questions_for` after each answer. Every question has a default, so a "Skip" button always works.
 
 ## Franchise references
 
-`style_from_text()` recognises names like "like Zelda meets Mario" (whole words, any case) and turns them into genres, module suggestions, generic style tags and a palette. `clean_text` has each name replaced with "a classic game". The franchise table lives only in `spec/style_refs.py` for recognition; nothing it outputs contains a franchise name. Security's IP guard is the final check before any text reaches AI or the ROM.
+`style_from_text()` recognises names like "like Zelda" (whole words, any case) and turns them into genres, module suggestions, generic style tags and a palette. `clean_text` has each name replaced with "a classic game". The franchise table lives only in `spec/style_refs.py` for recognition; nothing it outputs contains a franchise name. Security's IP guard is the final check before any text reaches AI or the ROM.
 
 ## Levels
 

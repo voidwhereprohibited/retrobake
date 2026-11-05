@@ -8,6 +8,6 @@ DISCLAIMER = (
     "RetroBake helps you make your own original games. You are responsible for what you "
     "create, name and share. Please don't use characters, names, logos or art that belong "
     "to other people or companies. RetroBake tries to keep games original, but it can't "
-    "catch everything. Cover art and name ideas come from a free online AI service and "
+    "catch everything. Cover art and name ideas are drawn by RetroBake on your PC and "
     "may be imperfect. RetroBake is free software provided as-is, with no warranty."
 )

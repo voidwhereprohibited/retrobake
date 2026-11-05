@@ -22,8 +22,10 @@ needs_wla = pytest.mark.skipif(
 )
 
 
-def _spec(title="Hello World", genres=("platformer",)):
-    spec, _ = gs.new_spec("snes", list(genres), "a brave fox crosses the hills", title, seed=3)
+def _spec(title="Hello World", genre="platformer", template=None):
+    spec, _ = gs.new_spec(
+        "snes", genre, "a brave fox crosses the hills", title, seed=3, template=template
+    )
     return spec
 
 
@@ -68,7 +70,7 @@ def test_unsafe_titles_never_reach_the_build(bad):
 
 
 def test_rejects_nes_and_broken_specs():
-    spec, _ = gs.new_spec("nes", ["platformer"], "x", "Hello", seed=1)
+    spec, _ = gs.new_spec("nes", "platformer", "x", "Hello", seed=1)
     with pytest.raises(snes.SnesBuildError, match="SNES"):
         snes.bake(spec)
     broken = _spec()
@@ -109,9 +111,9 @@ def test_bake_hello_world_rom_is_valid_lorom_with_title_data():
 
 
 @needs_wla
-def test_bake_is_deterministic_and_works_for_mashups():
+def test_bake_is_deterministic_and_works_for_templates():
     a = snes.bake(_spec("Same Game")).rom
     b = snes.bake(_spec("Same Game")).rom
     assert a == b
-    mash = snes.bake(_spec("Mashup", ("platformer", "topdown_adventure")))
-    assert mash.engine == "hello"
+    tmpl = snes.bake(_spec("Quest", "platformer", "action-adventure"))
+    assert tmpl.engine == "hello"

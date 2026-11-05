@@ -27,25 +27,25 @@ Limits mirror `src/retrobake/spec/game_spec.schema.json`; change both together.
   like toad/link/sonic only when a real name is also present, always in titles; `allow` genre
   words like metroidvania). Style words are fine. Add names by PR to security.
 
-## 3. AI guarding (ai-art)
+## 3. Cover art and name guarding (ai-art)
+Covers and names are made offline; RetroBake sends no prompts or requests. These rules stay for the
+prompt templates in `prompts.py` and for any generated text or image:
 1. Fixed prompt template in code, single-spaced; user text only fills slots.
 2. Each slot: `quote_user_text(text)` → cleaned, IP-scrubbed, instruction/URL/markup removed, quoted.
-3. Whole prompt: `check_prompt(prompt)` right before the request.
-4. Every request includes `POLLINATIONS_REQUIRED_PARAMS` (`safe=true`, `private=true`, `enhance=false`).
-   On the keyed `gen.pollinations.ai` host `safe=true` only means privacy+secrets, so `safe` there
-   must be `POLLINATIONS_GEN_SAFE` (`true,sexual,violence`). The anonymous image host embeds the
-   prompt in EXIF, so AI images are always re-encoded before saving (ai-art does this).
-5. Results: `validate_name(text)` and `validate_image(bytes)` (PNG/JPEG/WebP, ≤ 8 MB,
-   64–2048 px), then decode with QImage, passing the format `validate_image` returned. Any `OutputRejected` → offline fallback.
-   Never use a file name or URL from the AI response.
+3. Whole prompt: `check_prompt(prompt)` before it is used.
+4. Results: `validate_name(text)` for names; `validate_image(bytes)` (PNG/JPEG/WebP, ≤ 8 MB,
+   64–2048 px) for any image from outside RetroBake. Never use a file name or URL from generated output.
 
 ## 4. Build sandbox (nes-engine, snes-engine)
 ```python
 with BuildWorkspace([TEMPLATES_DIR]) as ws:
     ws.copy_template(TEMPLATES_DIR / "nes/platformer", "src")
-    ws.write_file("src/level_data.s", generated_text)   # data only
-    res = run_build([CC65_BIN / "cl65", "-t", "nes", "-o", "game.nes", "src/main.s"],
-                    workspace=ws, toolchain_dirs=[CC65_BIN])
+    ws.write_file("src/level_data.s", generated_text)  # data only
+    res = run_build(
+        [CC65_BIN / "cl65", "-t", "nes", "-o", "game.nes", "src/main.s"],
+        workspace=ws,
+        toolchain_dirs=[CC65_BIN],
+    )
     rom = ws.read_output("game.nes", max_bytes=1024 * 1024)
 ```
 - Argument lists only (never `shell=True`); argv[0] must be inside a bundled toolchain folder.

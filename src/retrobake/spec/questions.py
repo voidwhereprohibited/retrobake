@@ -15,7 +15,7 @@ from __future__ import annotations
 import copy
 from typing import Any
 
-from .catalog import catalog, genre_label, module_available, system_limits
+from .catalog import catalog, module_available, system_limits
 from .rules import resolve
 
 
@@ -56,24 +56,6 @@ def questions_for(spec: dict[str, Any]) -> list[dict[str, Any]]:
                 "default": _get(spec, target),
                 **extra,
             }
-        )
-
-    genres = spec["genres"]
-    if len(genres) == 2:
-        add(
-            "feel",
-            "Which game type should it feel most like when you move around?",
-            "choice",
-            "genres.0",
-            "The other one adds its world and extras.",
-            options=[{"value": g, "label": genre_label(g)} for g in genres],
-        )
-        add(
-            "world_shape",
-            "How should the world be laid out?",
-            "choice",
-            "modules.progression",
-            options=_opts(labels["progression"]),
         )
 
     add(
@@ -193,13 +175,6 @@ def apply_answers(spec: dict[str, Any], answers: dict[str, Any]) -> tuple[dict[s
         if question is None:
             continue
         target = question["target"]
-        if target == "genres.0":
-            if value in spec["genres"] and value != spec["genres"][0]:
-                from .builder import combine_modules  # local import avoids a cycle
-
-                spec["genres"] = [value] + [g for g in spec["genres"] if g != value]
-                spec["modules"] = combine_modules(spec["genres"])
-            continue
         if target == "modules.progression" and not module_available("progression", value):
             continue
         section, key = target.split(".")

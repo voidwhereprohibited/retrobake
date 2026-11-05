@@ -9,8 +9,8 @@ from retrobake.spec import levels as lv
 from retrobake.spec.platformer import UnsupportedSpec, generate_levels
 
 
-def _spec(system="nes", genres=("platformer",), seed=1, **answers):
-    spec, _ = gs.new_spec(system, list(genres), seed=seed)
+def _spec(system="nes", genre="platformer", seed=1, template=None, **answers):
+    spec, _ = gs.new_spec(system, genre, seed=seed, template=template)
     if answers:
         spec, _ = gs.apply_answers(spec, answers)
     assert gs.validate(spec) == []
@@ -85,14 +85,14 @@ def test_json_shape():
 
 
 @pytest.mark.parametrize(
-    ("genres", "answers", "expect"),
+    ("template", "answers", "expect"),
     [
-        (("platformer", "topdown_adventure"), {"dungeons": 4}, 4),
-        (("platformer",), {"world_shape": "open_map"}, 1),
+        ("action-adventure", {"dungeons": 4}, 4),
+        (None, {"world_shape": "open_map"}, 1),
     ],
 )
-def test_other_progressions(genres, answers, expect):
-    spec = _spec("snes", genres, seed=3)
+def test_other_progressions(template, answers, expect):
+    spec = _spec("snes", seed=3, template=template)
     if "world_shape" in answers:
         spec["modules"]["progression"] = "open_map"
         spec["world"]["map_size"] = "large"
@@ -109,7 +109,7 @@ def test_other_progressions(genres, answers, expect):
 
 def test_topdown_not_supported_yet():
     with pytest.raises(UnsupportedSpec) as exc:
-        generate_levels(_spec("nes", ("topdown_adventure",)))
+        generate_levels(_spec("nes", "topdown_adventure"))
     assert "Top-down" in exc.value.message
 
 
@@ -139,7 +139,7 @@ def test_ip_guard_in_validate():
 
 
 def test_new_spec_and_answers_scrub_free_text():
-    spec, _ = gs.new_spec("nes", ["platformer"], "my hero is like Samus Aran", seed=1)
+    spec, _ = gs.new_spec("nes", "platformer", "my hero is like Samus Aran", seed=1)
     assert "Samus" not in spec["description"]
     spec, _ = gs.apply_answers(spec, {"hero_description": "a plumber like Mario"})
     assert "Mario" not in spec["hero"]["description"]
