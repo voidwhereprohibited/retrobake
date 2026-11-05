@@ -1,0 +1,43 @@
+RetroBake - third-party notices
+===============================
+
+The files under third_party/ are copied unchanged from their upstream projects. Every
+original header and licence file is kept. third_party/SHA256SUMS lists the exact file
+hashes. RetroBake's own build script, start-up code, placeholder art and placeholder music
+are original and are not covered by this file.
+
+Doug Fraker - nesdoug library (third_party/nesdoug/)
+----------------------------------------------------
+Files: LIB/nesdoug.s, LIB/nesdoug.h, LIB/neslib.s, LIB/neslib.h (taken from the
+"26_Full_Game" example of nesdoug's NES tutorial). Only the LIB folder and the licence were
+taken. No art, music, levels, makefiles or start-up code from that example are used.
+Licence: MIT. Copyright (c) 2018 Doug Fraker. Full text: third_party/nesdoug/License.txt.
+LIB/neslib.s and LIB/neslib.h are Shiru's neslib with improvements by VEG and Doug Fraker. Their
+headers state: "NES hardware-dependent functions by Shiru (shiru@mail.ru) with improvements by
+VEG. Feel free to do anything you want with this code, consider it Public Domain."
+
+Shiru and Lauri Kasanen - neslib (third_party/neslib/)
+------------------------------------------------------
+Files: neslib.sinc, display.sinc, famitone2.sinc, lz4vram.s, neslib.h (clbr/neslib).
+crt0.s is intentionally NOT included because it .incbins a sample music file.
+Licence: zlib. (C) 2015 Alex Semenov (Shiru), (C) 2016 Lauri Kasanen.
+Full text: third_party/neslib/COPYING.
+famitone2.sinc is Shiru's FamiTone2, which its author released as public domain.
+RetroBake's ROM build uses the nesdoug LIB copy of neslib. This copy is kept for reference.
+
+Mathieu Gauthier - FamiStudio sound engine (third_party/famistudio/)
+--------------------------------------------------------------------
+Files: famistudio_ca65.s, famistudio_cc65.h.
+Notice, kept in the source header: "Copyright (c) 2019-2026 Mathieu Gauthier. Copying and
+distribution of this file, with or without modification, are permitted in any medium without
+royalty provided the copyright notice and this notice are preserved in all source code copies.
+This file is offered as-is, without any warranty." The engine is based on FamiTone2 by Shiru.
+The repository's own LICENSE file (MIT, Copyright (c) 2019 BleuBleu) is kept as
+third_party/famistudio/LICENSE.
+The engine's note-table .bin files are not copied. RetroBake's build script computes them from
+the standard NTSC formula and checks them against the upstream SHA-256 hashes.
+
+cc65 (build tool, not linked as source)
+---------------------------------------
+ca65 and ld65 from the cc65 project are used to assemble and link ROMs. Licence: zlib.
+See toolchains/cc65/LICENSE when a bundled toolchain is shipped.
